@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Pzks.App/Pzks.App.csproj" />
+  <Project Path="Pzks.Core/Pzks.Core.csproj" />
+  <Project Path="Pzks.Tests/Pzks.Tests.csproj" />
+</Solution>
