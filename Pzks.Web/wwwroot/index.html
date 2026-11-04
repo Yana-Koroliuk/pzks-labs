@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ПЗКС · ЛР2 — дерево паралельної форми</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+    <h1>ЛР2 — дерево паралельної форми</h1>
+    <p>Автоматичне розпаралелювання арифметичного виразу: мінімальна кількість ярусів, максимальна ширина</p>
+</header>
+
+<main>
+    <section class="card input-card">
+        <form id="form" autocomplete="off">
+            <input id="expression" type="text" spellcheck="false"
+                   placeholder="Введіть вираз, наприклад a-b-c-d-e-f-g-h">
+            <button type="submit">Побудувати</button>
+        </form>
+        <div id="samples" class="samples"></div>
+    </section>
+
+    <section id="result" hidden>
+        <div id="status" class="card status"></div>
+
+        <div id="lr1" class="card" hidden>
+            <h2>Помилки ЛР1</h2>
+            <div id="lr1-expression" class="expression-line"></div>
+            <ol id="lr1-errors" class="errors"></ol>
+            <div id="lr1-correction"></div>
+        </div>
+
+        <div id="metrics" class="metrics" hidden></div>
+
+        <div id="forms" class="card" hidden>
+            <div class="form-row"><span class="label">Вихідний вираз</span><code id="source-infix"></code></div>
+            <div id="simplified-row" class="form-row"><span class="label">Після розкриття дужок і спрощення</span><code id="simplified"></code></div>
+            <div id="parallel-row" class="form-row"><span class="label">Паралельна форма</span><code id="parallel-infix" class="accent"></code></div>
+        </div>
+
+        <div id="steps-card" class="card" hidden>
+            <h2>Перетворення</h2>
+            <ol id="steps" class="steps"></ol>
+        </div>
+
+        <div id="zero-card" class="card danger" hidden>
+            <h2>Недопустимі операції — ділення на 0</h2>
+            <ol id="zero-errors" class="errors"></ol>
+            <p>Дерево паралельної форми не будується, доки вираз містить ділення на 0.</p>
+        </div>
+
+        <div id="trees" class="trees" hidden>
+            <div class="card tree-card">
+                <div class="tree-head">
+                    <h2>Послідовне дерево (ЛР1) <span id="source-tiers" class="muted"></span></h2>
+                    <div class="tree-buttons">
+                        <button type="button" class="small" data-download="source" data-format="png">PNG</button>
+                        <button type="button" class="small" data-download="source" data-format="svg">SVG</button>
+                    </div>
+                </div>
+                <div id="source-svg" class="tree-scroll"></div>
+            </div>
+            <div class="card tree-card">
+                <div class="tree-head">
+                    <h2>Дерево паралельної форми (ЛР2) <span id="parallel-tiers" class="muted"></span></h2>
+                    <div class="tree-buttons">
+                        <button type="button" class="small" data-download="parallel" data-format="png">PNG</button>
+                        <button type="button" class="small" data-download="parallel" data-format="svg">SVG</button>
+                    </div>
+                </div>
+                <div id="parallel-svg" class="tree-scroll"></div>
+            </div>
+        </div>
+
+        <div id="levels-card" class="card" hidden>
+            <h2>Операції по ярусах</h2>
+            <p class="muted">Операції одного ярусу виконуються одночасно; [n] — результат операції n.</p>
+            <table id="levels" class="levels"></table>
+        </div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

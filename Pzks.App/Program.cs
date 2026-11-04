@@ -2,10 +2,20 @@
 using Pzks.App;
 using Pzks.Core;
 using Pzks.Core.Correction;
+using Pzks.Core.Parallelization;
 using Pzks.Core.Samples;
 
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
+
+if (args is ["--lr2", .. var rest])
+{
+    if (rest.Length > 0)
+        BuildParallel(string.Join(' ', rest));
+    else
+        RunParallelSamples(MemoExpressions.Lab2);
+    return;
+}
 
 if (args.Length > 0)
 {
@@ -16,10 +26,14 @@ if (args.Length > 0)
 while (true)
 {
     Console.WriteLine();
-    ConsoleRenderer.WriteLine("=== ПЗКС. ЛР1: лексичний і синтаксичний аналіз арифметичного виразу ===", ConsoleColor.Cyan);
-    Console.WriteLine("1 — Ввести вираз");
-    Console.WriteLine("2 — Загальні тести з пам'ятки (8)");
-    Console.WriteLine("3 — Граматика");
+    ConsoleRenderer.WriteLine("=== ПЗКС. Аналіз і розпаралелювання арифметичного виразу ===", ConsoleColor.Cyan);
+    Console.WriteLine("ЛР1:");
+    Console.WriteLine("  1 — Ввести вираз (лексичний і синтаксичний аналіз)");
+    Console.WriteLine("  2 — Загальні тести з пам'ятки (8)");
+    Console.WriteLine("  3 — Граматика");
+    Console.WriteLine("ЛР2:");
+    Console.WriteLine("  4 — Ввести вираз (дерево паралельної форми)");
+    Console.WriteLine("  5 — Тести ЛР2 з пам'ятки (М1–М4, P1–P2, E1–E3, S1–S2)");
     Console.WriteLine("0 — Вихід");
     Console.Write("> ");
 
@@ -30,9 +44,7 @@ while (true)
     switch (choice.Trim())
     {
         case "1":
-            Console.Write("Вираз: ");
-            string? expression = Console.ReadLine();
-            if (expression is not null)
+            if (ReadExpression() is { } expression)
                 AnalyzeInDetail(expression);
             break;
         case "2":
@@ -41,12 +53,25 @@ while (true)
         case "3":
             Console.WriteLine(GrammarHelp.Text);
             break;
+        case "4":
+            if (ReadExpression() is { } parallelExpression)
+                BuildParallel(parallelExpression);
+            break;
+        case "5":
+            RunParallelSamples(MemoExpressions.Lab2);
+            break;
         case "0":
             return;
         default:
             Console.WriteLine("Невідомий пункт меню.");
             break;
     }
+}
+
+static string? ReadExpression()
+{
+    Console.Write("Вираз: ");
+    return Console.ReadLine();
 }
 
 static void AnalyzeInDetail(string expression)
@@ -70,8 +95,27 @@ static void RunSamples(IEnumerable<SampleExpression> samples)
     foreach (var sample in samples)
     {
         Console.WriteLine();
-        string title = string.IsNullOrEmpty(sample.Description) ? $"Тест {sample.Id}" : $"Тест {sample.Id}: {sample.Description}";
-        ConsoleRenderer.WriteLine(title, ConsoleColor.Cyan);
+        ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
         ConsoleRenderer.PrintErrors(ExpressionAnalyzer.Analyze(sample.Expression));
     }
 }
+
+static void BuildParallel(string expression)
+{
+    Console.WriteLine();
+    ConsoleRenderer.PrintParallel(ParallelTreeBuilder.Build(expression));
+}
+
+static void RunParallelSamples(IEnumerable<SampleExpression> samples)
+{
+    foreach (var sample in samples)
+    {
+        Console.WriteLine();
+        ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
+        ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
+        ConsoleRenderer.PrintParallel(ParallelTreeBuilder.Build(sample.Expression));
+    }
+}
+
+static string Title(SampleExpression sample) =>
+    string.IsNullOrEmpty(sample.Description) ? $"Тест {sample.Id}" : $"Тест {sample.Id}: {sample.Description}";

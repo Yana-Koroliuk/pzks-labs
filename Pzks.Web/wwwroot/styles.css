@@ -1,0 +1,191 @@
+:root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --border: #e3e5e8;
+    --accent: #2563eb;
+    --green: #16a34a;
+    --green-bg: #dcfce7;
+    --yellow: #a16207;
+    --yellow-bg: #fef3c7;
+    --blue: #1d4ed8;
+    --blue-bg: #dbeafe;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --purple: #9333ea;
+}
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+}
+
+header {
+    padding: 22px 32px 14px;
+    background: #1e293b;
+    color: #f8fafc;
+}
+header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+header p { margin: 4px 0 0; color: #cbd5e1; }
+
+main { max-width: 1500px; margin: 0 auto; padding: 20px 32px 40px; }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.card h2 { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+
+.muted { color: var(--muted); font-weight: 400; }
+
+form { display: flex; gap: 10px; }
+#expression {
+    flex: 1;
+    padding: 10px 14px;
+    font: 17px/1.4 Consolas, "Cascadia Mono", monospace;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+#expression:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+button {
+    padding: 10px 20px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+button:hover { filter: brightness(1.1); }
+button.small {
+    padding: 3px 10px;
+    font-size: 12px;
+    background: #e2e8f0;
+    color: var(--text);
+}
+
+.samples { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-top: 14px; }
+.sample-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sample-group .group-title { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.chip {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: #e2e8f0;
+    color: var(--text);
+}
+.chip:hover { border-color: currentColor; }
+.chip.mandatory { background: var(--green-bg); color: var(--green); }
+.chip.brackets { background: var(--yellow-bg); color: var(--yellow); }
+.chip.constants { background: var(--blue-bg); color: var(--blue); }
+.chip.simplification { background: var(--red-bg); color: var(--red); }
+
+.status { font-weight: 600; }
+.status.ok { border-left: 5px solid var(--green); }
+.status.bad { border-left: 5px solid var(--red); }
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.metric {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+}
+.metric .name { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.metric .value { font-size: 24px; font-weight: 600; }
+.metric .value .arrow { color: var(--muted); font-weight: 400; margin: 0 6px; }
+.metric .value .after { color: var(--green); }
+.metric .hint { font-size: 12px; color: var(--muted); }
+
+.form-row { display: flex; gap: 14px; align-items: baseline; padding: 4px 0; flex-wrap: wrap; }
+.form-row .label { width: 290px; color: var(--muted); flex-shrink: 0; }
+code {
+    font: 15px Consolas, "Cascadia Mono", monospace;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 5px;
+    word-break: break-all;
+}
+code.accent { background: var(--green-bg); color: #14532d; font-weight: 600; }
+
+.steps { margin: 0; padding-left: 26px; }
+.steps li { padding: 3px 0; }
+.badge {
+    display: inline-block;
+    min-width: 118px;
+    padding: 1px 8px;
+    margin-right: 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+.badge.brackets { background: var(--yellow-bg); color: var(--yellow); }
+.badge.simplification, .badge.constants { background: var(--blue-bg); color: var(--blue); }
+.badge.regrouping { background: var(--green-bg); color: var(--green); }
+
+.danger { border-left: 5px solid var(--red); }
+.danger h2, .danger li { color: var(--red); }
+
+.errors { margin: 8px 0 0; padding-left: 26px; }
+.errors .lexical { color: var(--purple); }
+.errors .syntax { color: var(--red); }
+
+.expression-line {
+    font: 17px Consolas, "Cascadia Mono", monospace;
+    white-space: pre;
+    overflow-x: auto;
+    padding: 6px 0;
+}
+.expression-line .lexical { color: white; background: var(--purple); border-radius: 2px; }
+.expression-line .syntax { color: white; background: var(--red); border-radius: 2px; }
+.expression-line .ruler { color: #9ca3af; font-size: 12px; }
+
+.correction { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.trees {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.trees .card { margin-bottom: 0; }
+.tree-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.tree-buttons { display: flex; gap: 6px; }
+.tree-scroll { overflow-x: auto; padding-top: 6px; }
+.tree-scroll svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.tree-scroll svg .node { cursor: help; }
+.tree-scroll svg .node:hover ellipse { fill: #dbeafe; stroke: var(--accent); }
+
+.levels { border-collapse: collapse; width: 100%; }
+.levels th, .levels td { border-top: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+.levels th { width: 130px; white-space: nowrap; font-weight: 600; }
+.op {
+    display: inline-block;
+    margin: 2px 6px 2px 0;
+    padding: 2px 8px;
+    border-radius: 5px;
+    background: #f1f5f9;
+    font: 14px Consolas, "Cascadia Mono", monospace;
+}
+.op b { color: var(--accent); }

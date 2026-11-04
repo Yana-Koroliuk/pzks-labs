@@ -4,6 +4,7 @@ using Pzks.Core.Ast;
 using Pzks.Core.Correction;
 using Pzks.Core.Diagnostics;
 using Pzks.Core.Lexing;
+using Pzks.Core.Parallelization;
 using Pzks.Core.Parsing;
 
 namespace Pzks.App;
@@ -169,6 +170,99 @@ public static class ConsoleRenderer
         Console.WriteLine($"Висота дерева: {ExprPrinter.Height(tree)}");
         Console.WriteLine($"Вираз за деревом: {ExprPrinter.ToInfix(tree)}");
     }
+
+    /// <summary>ЛР2: перетворення виразу і дерево паралельної форми.</summary>
+    public static void PrintParallel(ParallelResult result)
+    {
+        Console.WriteLine($"Вираз: {result.Analysis.Expression}");
+        if (result.Source is not { } source)
+        {
+            PrintErrors(result.Analysis);
+            WriteLine("Вираз не пройшов перевірку ЛР1 — дерево паралельної форми не будується. "
+                + "Автовиправлення показує пункт 1 меню.", SyntaxColor);
+            return;
+        }
+
+        WriteLine("Перевірка ЛР1: помилок немає.", ConsoleColor.Green);
+        Console.WriteLine($"Послідовне дерево (ЛР1): ярусів {TreeLevels.Tiers(source)}, "
+            + $"операцій {TreeLevels.OperationCount(source)}, ширина {TreeLevels.Width(source)}");
+
+        Console.WriteLine();
+        WriteLine("Перетворення:", ConsoleColor.Cyan);
+        if (result.Steps.Count == 0)
+            Console.WriteLine("  немає");
+        for (int i = 0; i < result.Steps.Count; i++)
+        {
+            var step = result.Steps[i];
+            Console.Write($"{i + 1,3}. ");
+            Write($"[{StepName(step.Kind)}]", StepColor(step.Kind));
+            Console.WriteLine($" {step.Description}");
+        }
+
+        if (result.Errors.Count > 0)
+        {
+            Console.WriteLine();
+            WriteLine($"Недопустимі операції: {result.Errors.Count}", SyntaxColor);
+            for (int i = 0; i < result.Errors.Count; i++)
+            {
+                var error = result.Errors[i];
+                WriteLine($"{i + 1,3}. терм «{error.Term}»: {error.Message}", SyntaxColor);
+            }
+            WriteLine("Дерево паралельної форми не будується, доки вираз містить ділення на 0.", SyntaxColor);
+            return;
+        }
+
+        var tree = result.Tree!;
+        Console.WriteLine();
+        Console.WriteLine($"Після розкриття дужок і спрощення: {ExprPrinter.ToInfix(result.Simplified!)}");
+        Console.Write("Паралельна форма: ");
+        WriteLine(ExprPrinter.ToGroupedInfix(tree), ConsoleColor.Green);
+
+        if (TreeLevels.Tiers(tree) == 0)
+        {
+            Console.WriteLine();
+            WriteLine("Вираз обчислено повністю: операцій не лишилося, дерево складається з одного операнда.", ConsoleColor.Green);
+            Console.WriteLine($"Ярусів: {TreeLevels.Tiers(source)} → 0, операцій: {TreeLevels.OperationCount(source)} → 0");
+            return;
+        }
+
+        Console.WriteLine();
+        WriteLine("Дерево паралельної форми (операнди зверху, яруси вниз):", ConsoleColor.Cyan);
+        foreach (string line in TierDiagram.Lines(tree))
+            Console.WriteLine("  " + line);
+
+        Console.WriteLine();
+        WriteLine("Операції по ярусах ([n] — результат операції n):", ConsoleColor.Cyan);
+        foreach (string line in TierDiagram.OperationLines(tree))
+            Console.WriteLine("  " + line);
+
+        Console.WriteLine();
+        WriteLine("Дерево (корінь зверху):", ConsoleColor.Cyan);
+        foreach (string line in ExprPrinter.ToTreeLines(tree))
+            Console.WriteLine("  " + line);
+
+        Console.WriteLine();
+        Console.Write("Ярусів: ");
+        WriteLine($"{TreeLevels.Tiers(source)} → {TreeLevels.Tiers(tree)}", ConsoleColor.Green);
+        Console.WriteLine($"Операцій: {TreeLevels.OperationCount(source)} → {TreeLevels.OperationCount(tree)}");
+        Console.WriteLine($"Найбільша ширина ярусу: {TreeLevels.Width(source)} → {TreeLevels.Width(tree)}");
+    }
+
+    private static string StepName(StepKind kind) => kind switch
+    {
+        StepKind.Brackets => "дужки",
+        StepKind.Simplification => "спрощення",
+        StepKind.Constants => "константи",
+        _ => "перегрупування",
+    };
+
+    private static ConsoleColor StepColor(StepKind kind) => kind switch
+    {
+        StepKind.Brackets => ConsoleColor.Yellow,
+        StepKind.Simplification => ConsoleColor.Blue,
+        StepKind.Constants => ConsoleColor.Blue,
+        _ => ConsoleColor.Green,
+    };
 
     public static void Write(string text, ConsoleColor color)
     {

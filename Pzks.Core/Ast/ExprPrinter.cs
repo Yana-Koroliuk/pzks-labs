@@ -5,41 +5,47 @@ namespace Pzks.Core.Ast;
 public static class ExprPrinter
 {
     /// <summary>Запис дерева у звичайному (інфіксному) вигляді з мінімально потрібними дужками.</summary>
-    public static string ToInfix(ExprNode node) => Format(node, atStart: true);
+    public static string ToInfix(ExprNode node) => Format(node, atStart: true, grouped: false);
+
+    /// <summary>
+    /// Запис, з якого видно структуру дерева: кожна операція того ж пріоритету, що й батьківська,
+    /// береться в дужки, наприклад ((a+b)+(c+d)). Потрібен для дерева паралельної форми.
+    /// </summary>
+    public static string ToGroupedInfix(ExprNode node) => Format(node, atStart: true, grouped: true);
 
     // atStart — вузол стоїть там, де граматика дозволяє унарний знак без дужок:
     // на початку виразу, аргументу функції або вмісту дужок.
-    private static string Format(ExprNode node, bool atStart) => node switch
+    private static string Format(ExprNode node, bool atStart, bool grouped) => node switch
     {
         NumberNode n => n.Text,
         VariableNode v => v.Name,
-        FunctionNode f => $"{f.Name}({string.Join(", ", f.Arguments.Select(a => Format(a, atStart: true)))})",
-        UnaryNode u when atStart => $"{u.Operator}{FormatUnaryOperand(u.Operand)}",
-        UnaryNode u => $"({u.Operator}{FormatUnaryOperand(u.Operand)})",
-        BinaryNode b => FormatBinary(b, atStart),
+        FunctionNode f => $"{f.Name}({string.Join(", ", f.Arguments.Select(a => Format(a, atStart: true, grouped)))})",
+        UnaryNode u when atStart => $"{u.Operator}{FormatUnaryOperand(u.Operand, grouped)}",
+        UnaryNode u => $"({u.Operator}{FormatUnaryOperand(u.Operand, grouped)})",
+        BinaryNode b => FormatBinary(b, atStart, grouped),
         _ => throw new ArgumentOutOfRangeException(nameof(node)),
     };
 
-    private static string FormatUnaryOperand(ExprNode operand) =>
-        operand is BinaryNode or UnaryNode ? Parenthesize(operand) : Format(operand, atStart: false);
+    private static string FormatUnaryOperand(ExprNode operand, bool grouped) =>
+        operand is BinaryNode or UnaryNode ? Parenthesize(operand, grouped) : Format(operand, atStart: false, grouped);
 
-    private static string FormatBinary(BinaryNode node, bool atStart)
+    private static string FormatBinary(BinaryNode node, bool atStart, bool grouped)
     {
         int precedence = Precedence(node);
 
-        string left = Precedence(node.Left) < precedence
-            ? Parenthesize(node.Left)
-            : Format(node.Left, atStart);
+        int leftPrecedence = Precedence(node.Left);
+        bool leftNeedsParens = leftPrecedence < precedence || (grouped && leftPrecedence == precedence);
+        string left = leftNeedsParens ? Parenthesize(node.Left, grouped) : Format(node.Left, atStart, grouped);
 
         int rightPrecedence = Precedence(node.Right);
         bool rightNeedsParens = rightPrecedence < precedence
-            || (rightPrecedence == precedence && node.Operator is '-' or '/');
-        string right = rightNeedsParens ? Parenthesize(node.Right) : Format(node.Right, atStart: false);
+            || (rightPrecedence == precedence && (grouped || node.Operator is '-' or '/'));
+        string right = rightNeedsParens ? Parenthesize(node.Right, grouped) : Format(node.Right, atStart: false, grouped);
 
         return $"{left}{node.Operator}{right}";
     }
 
-    private static string Parenthesize(ExprNode node) => $"({Format(node, atStart: true)})";
+    private static string Parenthesize(ExprNode node, bool grouped) => $"({Format(node, atStart: true, grouped)})";
 
     /// <summary>Дерево у вигляді рядків з псевдографікою, корінь зверху.</summary>
     public static IReadOnlyList<string> ToTreeLines(ExprNode node)
