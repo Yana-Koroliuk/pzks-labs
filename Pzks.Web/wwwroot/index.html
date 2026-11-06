@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ПЗКС · ЛР2 — дерево паралельної форми</title>
+    <title>ПЗКС · ЛР2: дерево паралельної форми</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header>
-    <h1>ЛР2 — дерево паралельної форми</h1>
+    <h1>ЛР2: дерево паралельної форми</h1>
     <p>Автоматичне розпаралелювання арифметичного виразу: мінімальна кількість ярусів, максимальна ширина</p>
 </header>
 
@@ -51,33 +51,32 @@
             <p>Дерево паралельної форми не будується, доки вираз містить ділення на 0.</p>
         </div>
 
-        <div id="trees" class="trees" hidden>
-            <div class="card tree-card">
-                <div class="tree-head">
-                    <h2>Послідовне дерево (ЛР1) <span id="source-tiers" class="muted"></span></h2>
-                    <div class="tree-buttons">
-                        <button type="button" class="small" data-download="source" data-format="png">PNG</button>
-                        <button type="button" class="small" data-download="source" data-format="svg">SVG</button>
-                    </div>
+        <div id="parallel-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Дерево паралельної форми <span id="parallel-tiers" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="parallel" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="parallel" data-format="svg">SVG</button>
                 </div>
-                <div id="source-svg" class="tree-scroll"></div>
             </div>
-            <div class="card tree-card">
-                <div class="tree-head">
-                    <h2>Дерево паралельної форми (ЛР2) <span id="parallel-tiers" class="muted"></span></h2>
-                    <div class="tree-buttons">
-                        <button type="button" class="small" data-download="parallel" data-format="png">PNG</button>
-                        <button type="button" class="small" data-download="parallel" data-format="svg">SVG</button>
-                    </div>
-                </div>
-                <div id="parallel-svg" class="tree-scroll"></div>
-            </div>
+            <div id="parallel-svg" class="tree-scroll"></div>
         </div>
 
         <div id="levels-card" class="card" hidden>
             <h2>Операції по ярусах</h2>
             <p class="muted">Операції одного ярусу виконуються одночасно; [n] — результат операції n.</p>
             <table id="levels" class="levels"></table>
+        </div>
+
+        <div id="source-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Для порівняння: послідовне дерево з ЛР1 <span id="source-tiers" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="source" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="source" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <div id="source-svg" class="tree-scroll"></div>
         </div>
     </section>
 </main>

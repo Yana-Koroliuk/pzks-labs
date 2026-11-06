@@ -163,13 +163,6 @@ code.accent { background: var(--green-bg); color: #14532d; font-weight: 600; }
 
 .correction { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-.trees {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-.trees .card { margin-bottom: 0; }
 .tree-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .tree-buttons { display: flex; gap: 6px; }
 .tree-scroll { overflow-x: auto; padding-top: 6px; }
