@@ -29,6 +29,13 @@ public static class ParallelTreeBuilder
         return new ParallelResult(analysis, session.Steps, session.Errors, simplified, tree);
     }
 
+    /// <summary>Етапи 1–2 без побудови дерева: ланцюжки після розкриття дужок і спрощення (вхід для ЛР3).</summary>
+    internal static Form Normalize(ExprNode tree)
+    {
+        var session = new Session();
+        return session.Simplify(session.Lower(tree));
+    }
+
     private sealed class Session
     {
         public List<Transformation> Steps { get; } = [];
@@ -427,7 +434,7 @@ public static class ParallelTreeBuilder
     // ---------- Допоміжне ----------
 
     /// <summary>Ланцюжок у звичайному лівоасоціативному вигляді (так, як його будує ЛР1).</summary>
-    private static ExprNode Sequential(Form form) => form switch
+    internal static ExprNode Sequential(Form form) => form switch
     {
         NumberForm n => ToNumber(n),
         LeafForm l => l.Node,

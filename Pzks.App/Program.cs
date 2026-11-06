@@ -2,6 +2,7 @@
 using Pzks.App;
 using Pzks.Core;
 using Pzks.Core.Correction;
+using Pzks.Core.Factoring;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Samples;
 
@@ -14,6 +15,15 @@ if (args is ["--lr2", .. var rest])
         BuildParallel(string.Join(' ', rest));
     else
         RunParallelSamples(MemoExpressions.Lab2);
+    return;
+}
+
+if (args is ["--lr3", .. var lr3Rest])
+{
+    if (lr3Rest.Length > 0)
+        BuildForms(string.Join(' ', lr3Rest));
+    else
+        RunFactoringSamples(MemoExpressions.Associative);
     return;
 }
 
@@ -34,6 +44,9 @@ while (true)
     Console.WriteLine("ЛР2:");
     Console.WriteLine("  4 — Ввести вираз (дерево паралельної форми)");
     Console.WriteLine("  5 — Тести ЛР2 з пам'ятки (М1–М4, P1–P2, E1–E3, S1–S2)");
+    Console.WriteLine("ЛР3:");
+    Console.WriteLine("  6 — Ввести вираз (еквівалентні форми: винесення за дужки)");
+    Console.WriteLine("  7 — Тести ЛР3 з пам'ятки (А1–А7)");
     Console.WriteLine("0 — Вихід");
     Console.Write("> ");
 
@@ -59,6 +72,13 @@ while (true)
             break;
         case "5":
             RunParallelSamples(MemoExpressions.Lab2);
+            break;
+        case "6":
+            if (ReadExpression() is { } formsExpression)
+                BuildForms(formsExpression);
+            break;
+        case "7":
+            RunFactoringSamples(MemoExpressions.Associative);
             break;
         case "0":
             return;
@@ -114,6 +134,23 @@ static void RunParallelSamples(IEnumerable<SampleExpression> samples)
         ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
         ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
         ConsoleRenderer.PrintParallel(ParallelTreeBuilder.Build(sample.Expression));
+    }
+}
+
+static void BuildForms(string expression)
+{
+    Console.WriteLine();
+    ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(expression));
+}
+
+static void RunFactoringSamples(IEnumerable<SampleExpression> samples)
+{
+    foreach (var sample in samples)
+    {
+        Console.WriteLine();
+        ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
+        ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
+        ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(sample.Expression));
     }
 }
 

@@ -17,6 +17,7 @@ public sealed record SampleResponse(string Id, string Expression, string Descrip
             'М' => "mandatory",
             'P' => "brackets",
             'E' => "constants",
+            'А' => "associative",
             _ => "simplification",
         });
 }

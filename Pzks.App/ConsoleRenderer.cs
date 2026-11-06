@@ -3,6 +3,7 @@ using Pzks.Core;
 using Pzks.Core.Ast;
 using Pzks.Core.Correction;
 using Pzks.Core.Diagnostics;
+using Pzks.Core.Factoring;
 using Pzks.Core.Lexing;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Parsing;
@@ -246,6 +247,82 @@ public static class ConsoleRenderer
         WriteLine($"{TreeLevels.Tiers(source)} → {TreeLevels.Tiers(tree)}", ConsoleColor.Green);
         Console.WriteLine($"Операцій: {TreeLevels.OperationCount(source)} → {TreeLevels.OperationCount(tree)}");
         Console.WriteLine($"Найбільша ширина ярусу: {TreeLevels.Width(source)} → {TreeLevels.Width(tree)}");
+    }
+
+    /// <summary>ЛР3: множина еквівалентних форм (винесення за дужки) і найкраща з них.</summary>
+    public static void PrintFactoring(FactoringResult result, int top = 15)
+    {
+        var original = result.Original;
+        Console.WriteLine($"Вираз: {original.Analysis.Expression}");
+        if (!result.IsValid)
+        {
+            if (original.Source is null)
+            {
+                PrintErrors(original.Analysis);
+                WriteLine("Вираз не пройшов перевірку ЛР1 — еквівалентні форми не будуються.", SyntaxColor);
+            }
+            else
+            {
+                foreach (var error in original.Errors)
+                    WriteLine($"  терм «{error.Term}»: {error.Message}", SyntaxColor);
+                WriteLine("Вираз містить ділення на 0 — еквівалентні форми не будуються.", SyntaxColor);
+            }
+            return;
+        }
+
+        var start = result.Forms[0];
+        Console.WriteLine($"Форма №0 (після розкриття дужок і спрощення ЛР2): {start.Infix}");
+        Console.WriteLine($"  паралельна форма: {ExprPrinter.ToGroupedInfix(start.Tree)}  "
+            + $"(ярусів {start.Tiers}, операцій {start.Operations}, ширина {start.Width})");
+
+        Console.WriteLine();
+        Write($"Еквівалентних форм: {result.Forms.Count}", ConsoleColor.Green);
+        Console.WriteLine($" (разом з вихідною), переходів у графі: {result.Edges.Count}");
+        if (result.Truncated)
+            WriteLine($"  Перебір неповний: форм більше за {FactoringExplorer.FullSearchForms}, тому на кожен наступний крок переходять "
+                + $"{FactoringExplorer.BeamWidth} найкращих (за ярусами і за операціями), усього не більше {FactoringExplorer.MaxForms} форм.",
+                ConsoleColor.Yellow);
+
+        var ranked = result.Ranked;
+        Console.WriteLine();
+        WriteLine(ranked.Count > top ? $"Найкращі {top} форм:" : "Усі форми:", ConsoleColor.Cyan);
+        Console.WriteLine($"{"№",5}  {"Ярусів",6}  {"Операцій",8}  {"Ширина",6}  {"Код",-22} Форма");
+        foreach (var form in ranked.Take(top))
+        {
+            string line = $"{form.Id,5}  {form.Tiers,6}  {form.Operations,8}  {form.Width,6}  {form.Code,-22} {form.Infix}";
+            if (form == result.Best)
+                WriteLine(line, ConsoleColor.Green);
+            else
+                Console.WriteLine(line);
+        }
+
+        var best = result.Best!;
+        Console.WriteLine();
+        WriteLine($"Найкраща форма №{best.Id} (код {best.Code}):", ConsoleColor.Cyan);
+        if (best.Path.Count == 0)
+            Console.WriteLine("  винесення за дужки не покращує вихідну форму");
+        for (int i = 0; i < best.Path.Count; i++)
+        {
+            var step = best.Path[i];
+            Console.WriteLine($"{i + 1,3}. винесено {step.Factor}: {step.Before} = {step.After}");
+        }
+        Console.WriteLine($"Форма: {best.Infix}");
+        Console.Write("Паралельна форма: ");
+        WriteLine(ExprPrinter.ToGroupedInfix(best.Tree), ConsoleColor.Green);
+
+        if (best.Tiers > 0)
+        {
+            Console.WriteLine();
+            WriteLine("Дерево паралельної форми (операнди зверху, яруси вниз):", ConsoleColor.Cyan);
+            foreach (string line in TierDiagram.Lines(best.Tree))
+                Console.WriteLine("  " + line);
+        }
+
+        Console.WriteLine();
+        Console.Write("Ярусів: ");
+        WriteLine($"{start.Tiers} → {best.Tiers}", ConsoleColor.Green);
+        Console.WriteLine($"Операцій: {start.Operations} → {best.Operations}");
+        Console.WriteLine($"Найбільша ширина ярусу: {start.Width} → {best.Width}");
     }
 
     private static string StepName(StepKind kind) => kind switch

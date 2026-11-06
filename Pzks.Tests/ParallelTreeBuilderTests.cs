@@ -142,12 +142,7 @@ public class ParallelTreeBuilderTests
         var tree = result.Tree!;
 
         Assert.True(TreeLevels.Tiers(tree) <= TreeLevels.Tiers(source));
-        foreach (int seed in new[] { 1, 2, 3 })
-        {
-            double expected = Evaluate(source, seed);
-            double actual = Evaluate(tree, seed);
-            Assert.Equal(expected, actual, Math.Max(1e-9, Math.Abs(expected) * 1e-9));
-        }
+        ExpressionValue.AssertEqual(source, tree);
     }
 
     [Theory]
@@ -158,27 +153,4 @@ public class ParallelTreeBuilderTests
 
         Assert.Equal(grouped, ExprPrinter.ToGroupedInfix(Pzks.Core.ExpressionAnalyzer.Analyze(grouped).Tree!));
     }
-
-    private static double Evaluate(ExprNode node, int seed) => node switch
-    {
-        NumberNode n => n.Value,
-        VariableNode v => 1.5 + (v.Name.Sum(c => c * seed) % 97) / 50.0,
-        UnaryNode u => u.Operator == '-' ? -Evaluate(u.Operand, seed) : Evaluate(u.Operand, seed),
-        BinaryNode b => b.Operator switch
-        {
-            '+' => Evaluate(b.Left, seed) + Evaluate(b.Right, seed),
-            '-' => Evaluate(b.Left, seed) - Evaluate(b.Right, seed),
-            '*' => Evaluate(b.Left, seed) * Evaluate(b.Right, seed),
-            _ => Evaluate(b.Left, seed) / Evaluate(b.Right, seed),
-        },
-        FunctionNode f => f.Name switch
-        {
-            "sin" => Math.Sin(Evaluate(f.Arguments[0], seed)),
-            "cos" => Math.Cos(Evaluate(f.Arguments[0], seed)),
-            "exp" => Math.Exp(Evaluate(f.Arguments[0], seed)),
-            "log" => Math.Log(Evaluate(f.Arguments[0], seed)),
-            _ => f.Arguments.Sum(a => Evaluate(a, seed)),
-        },
-        _ => throw new ArgumentOutOfRangeException(nameof(node)),
-    };
 }

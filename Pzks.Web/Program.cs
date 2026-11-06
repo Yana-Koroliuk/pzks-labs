@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Pzks.Core.Factoring;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Samples;
 using Pzks.Web;
@@ -14,6 +15,11 @@ app.MapGet("/api/samples", () => MemoExpressions.Lab2.Select(SampleResponse.From
 app.MapPost("/api/parallel", (ParallelRequest request) =>
     ParallelResponse.From(ParallelTreeBuilder.Build(request.Expression ?? "")));
 
+app.MapGet("/api/lab3/samples", () => MemoExpressions.Associative.Select(SampleResponse.From));
+
+app.MapPost("/api/factoring", (ParallelRequest request) =>
+    FactoringResponse.From(FactoringExplorer.Explore(request.Expression ?? "")));
+
 app.Lifetime.ApplicationStarted.Register(() => OpenBrowser(app.Urls.FirstOrDefault()));
 app.Run();
 
@@ -22,6 +28,7 @@ static void OpenBrowser(string? url)
     if (url is null)
         return;
     Console.WriteLine($"Сторінка ЛР2: {url}");
+    Console.WriteLine($"Сторінка ЛР3: {url}/lab3.html");
     if (Environment.GetEnvironmentVariable("PZKS_NO_BROWSER") == "1")
         return;
     try

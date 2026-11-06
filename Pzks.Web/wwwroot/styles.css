@@ -33,6 +33,17 @@ header {
     color: #f8fafc;
 }
 header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.tabs a {
+    padding: 4px 12px;
+    border-radius: 6px;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+}
+.tabs a:hover { background: #334155; }
+.tabs a.active { background: #f8fafc; color: #1e293b; }
 header p { margin: 4px 0 0; color: #cbd5e1; }
 
 main { max-width: 1500px; margin: 0 auto; padding: 20px 32px 40px; }
@@ -94,6 +105,7 @@ button.small {
 .chip.brackets { background: var(--yellow-bg); color: var(--yellow); }
 .chip.constants { background: var(--blue-bg); color: var(--blue); }
 .chip.simplification { background: var(--red-bg); color: var(--red); }
+.chip.associative { background: var(--blue-bg); color: var(--blue); }
 
 .status { font-weight: 600; }
 .status.ok { border-left: 5px solid var(--green); }
@@ -182,3 +194,27 @@ code.accent { background: var(--green-bg); color: #14532d; font-weight: 600; }
     font: 14px Consolas, "Cascadia Mono", monospace;
 }
 .op b { color: var(--accent); }
+
+/* ЛР3 */
+.note { margin: 8px 0 0; color: var(--yellow); }
+.badge.factoring { background: var(--blue-bg); color: var(--blue); min-width: 0; }
+
+.forms-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.forms-table th, .forms-table td { border-top: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+.forms-table th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.forms-table .num { width: 80px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.forms-table .code { width: 230px; }
+.forms-table td.code { font: 13px Consolas, "Cascadia Mono", monospace; color: var(--muted); }
+.forms-table td.infix { font: 14px Consolas, "Cascadia Mono", monospace; word-break: break-all; }
+.forms-table tbody tr { cursor: pointer; }
+.forms-table tbody tr:hover { background: #f8fafc; }
+.forms-table tr.best td { background: var(--green-bg); }
+.forms-table tr.selected td { font-weight: 600; }
+.forms-table tr.selected td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
+.forms-table tr.original td.infix::after { content: " · вихідна"; color: var(--muted); font-family: "Segoe UI", sans-serif; }
+.table-more { margin-top: 10px; }
+
+.graph-scroll { overflow-x: auto; padding-top: 6px; }
+.graph-scroll svg { display: block; margin: 0 auto; }
+.graph-scroll svg .form-node { cursor: pointer; }
+.graph-scroll svg .form-node:hover circle { stroke: var(--accent); fill: #dbeafe; }
