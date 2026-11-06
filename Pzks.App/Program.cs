@@ -27,6 +27,18 @@ if (args is ["--lr3", .. var lr3Rest])
     return;
 }
 
+if (args is ["--lr4", .. var lr4Rest])
+{
+    var lr4Laws = Laws.Distributive | Laws.Associative;
+    if (lr4Rest is ["--d", .. var dRest])
+        (lr4Laws, lr4Rest) = (Laws.Distributive, dRest);
+    if (lr4Rest.Length > 0)
+        BuildForms(string.Join(' ', lr4Rest), lr4Laws);
+    else
+        RunFactoringSamples(MemoExpressions.Lab4, lr4Laws);
+    return;
+}
+
 if (args.Length > 0)
 {
     AnalyzeInDetail(string.Join(' ', args));
@@ -47,6 +59,9 @@ while (true)
     Console.WriteLine("ЛР3:");
     Console.WriteLine("  6 — Ввести вираз (еквівалентні форми: винесення за дужки)");
     Console.WriteLine("  7 — Тести ЛР3 з пам'ятки (А1–А7)");
+    Console.WriteLine("ЛР4:");
+    Console.WriteLine("  8 — Ввести вираз (еквівалентні форми: розкриття дужок)");
+    Console.WriteLine("  9 — Тести ЛР4 з пам'ятки (Д1–Д5 і приклад графа)");
     Console.WriteLine("0 — Вихід");
     Console.Write("> ");
 
@@ -79,6 +94,13 @@ while (true)
             break;
         case "7":
             RunFactoringSamples(MemoExpressions.Associative);
+            break;
+        case "8":
+            if (ReadExpression() is { } lr4Expression)
+                BuildForms(lr4Expression, ReadLaws());
+            break;
+        case "9":
+            RunFactoringSamples(MemoExpressions.Lab4, ReadLaws());
             break;
         case "0":
             return;
@@ -137,20 +159,26 @@ static void RunParallelSamples(IEnumerable<SampleExpression> samples)
     }
 }
 
-static void BuildForms(string expression)
+static Laws ReadLaws()
 {
-    Console.WriteLine();
-    ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(expression));
+    Console.Write("Закони: 1 — D + A (розкриття і винесення, як у прикладі пам'ятки), 2 — лише D [1]: ");
+    return Console.ReadLine()?.Trim() == "2" ? Laws.Distributive : Laws.Distributive | Laws.Associative;
 }
 
-static void RunFactoringSamples(IEnumerable<SampleExpression> samples)
+static void BuildForms(string expression, Laws laws = Laws.Associative)
+{
+    Console.WriteLine();
+    ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(expression, laws));
+}
+
+static void RunFactoringSamples(IEnumerable<SampleExpression> samples, Laws laws = Laws.Associative)
 {
     foreach (var sample in samples)
     {
         Console.WriteLine();
         ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
         ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
-        ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(sample.Expression));
+        ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(sample.Expression, laws));
     }
 }
 

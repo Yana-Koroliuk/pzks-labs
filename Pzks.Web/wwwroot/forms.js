@@ -1,5 +1,7 @@
 "use strict";
 
+// Сторінки ЛР3 (lab3.html) і ЛР4 (lab4.html): налаштування — в атрибутах data-* елемента body.
+const page = document.body.dataset;
 const pageSize = 50;
 
 let current = null;
@@ -10,8 +12,8 @@ let showAll = false;
 // ---------- Тести з пам'ятки ----------
 
 async function loadSamples() {
-    const samples = await (await fetch("/api/lab3/samples")).json();
-    const box = el("div", { class: "sample-group" }, el("span", { class: "group-title" }, "Асоціативний закон"));
+    const samples = await (await fetch(page.samples)).json();
+    const box = el("div", { class: "sample-group" }, el("span", { class: "group-title" }, page.group));
     for (const sample of samples)
         box.append(sampleChip(sample, sample.group, () => build(sample.expression)));
     $("samples").replaceChildren(box);
@@ -19,11 +21,17 @@ async function loadSamples() {
 
 // ---------- Побудова ----------
 
+function laws() {
+    return $("laws")?.value;
+}
+
 async function build(expression) {
     $("expression").value = expression;
     history.replaceState(null, "", "#" + encodeURIComponent(expression));
+    $("status").className = "card status";
     $("status").textContent = "Пошук еквівалентних форм…";
-    current = await postJson("/api/factoring", { expression });
+    show("result", true);
+    current = await postJson(page.api, { expression, laws: laws() });
     forms = new Map(current.forms.map(f => [f.id, f]));
     showAll = false;
     render(current);
@@ -57,6 +65,11 @@ function render(r) {
     $("start-infix").textContent = start.infix;
     $("best-infix").textContent = `№${best.id}: ${best.infix}`;
     $("best-parallel").textContent = best.parallel;
+    if ($("expanded-infix")) {
+        const expanded = forms.get(r.expandedId);
+        $("expanded-infix").textContent =
+            `№${expanded.id}: ${expanded.infix} (ярусів: ${expanded.tiers}, операцій: ${expanded.operations})`;
+    }
 
     renderTable();
     renderGraph(r);
@@ -92,7 +105,8 @@ function renderTable() {
 
     const rows = showAll ? r.forms : r.forms.slice(0, pageSize);
     $("forms-body").replaceChildren(...rows.map(f => {
-        const classes = [f.id === r.bestId ? "best" : "", f.id === 0 ? "original" : "", f.id === selected?.id ? "selected" : ""];
+        const classes = [f.id === r.bestId ? "best" : "", f.id === 0 ? "original" : "",
+            f.id === r.expandedId ? "expanded" : "", f.id === selected?.id ? "selected" : ""];
         return el("tr", { class: classes.join(" "), "data-id": f.id, onclick: () => select(f.id, true) },
             el("td", { class: "num" }, f.id),
             el("td", { class: "code" }, f.code),
@@ -134,16 +148,20 @@ async function select(id, scroll) {
     if (selected?.id !== id) return;
     selected.tree = tree;
 
-    const label = id === current.bestId ? " — найкраща" : id === 0 ? " — вихідна" : "";
+    const label = id === current.bestId ? " — найкраща"
+        : id === 0 ? " — вихідна"
+        : id === current.expandedId ? " — усі дужки розкрито" : "";
     $("selected-title").replaceChildren(`Форма №${id}${label} `,
         el("span", { class: "muted" }, `· код ${form.code} · ярусів: ${form.tiers}, операцій: ${form.operations}, ширина: ${form.width}`));
 
     const steps = pathTo(form);
     $("selected-path").replaceChildren(...(steps.length === 0
-        ? [el("li", { class: "muted" }, "форма №0 — вираз після розкриття дужок і спрощення ЛР2, винесень немає")]
+        ? [el("li", { class: "muted" }, "форма №0 — вираз після розкриття дужок з + і - та спрощення ЛР2, перетворень немає")]
         : steps.map(s => el("li", {},
-            el("span", { class: "badge factoring" }, `винесено ${s.factor}`), " ",
-            el("code", {}, s.before), " = ", el("code", {}, s.after)))));
+            s.law === "D"
+                ? el("span", { class: "badge distributive" }, `D: розкрито дужку, внесено ${s.factor}`)
+                : el("span", { class: "badge factoring" }, `${current.laws === "A" ? "" : "A: "}винесено ${s.factor}`),
+            " ", el("code", {}, s.before), " = ", el("code", {}, s.after)))));
 
     $("selected-infix").textContent = form.infix;
     $("selected-parallel").textContent = form.parallel;
@@ -155,9 +173,9 @@ async function select(id, scroll) {
 // ---------- Збереження малюнків ----------
 
 function saveImage(which, format) {
-    if (which === "graph") saveSvg(current?.graph, "lr3-graph", format);
-    else if (which === "original") saveSvg(current?.original.parallel?.svg, "lr3-form-0", format);
-    else saveSvg(selected?.tree?.parallel?.svg, `lr3-form-${selected?.id}`, format);
+    if (which === "graph") saveSvg(current?.graph, `${page.prefix}-graph`, format);
+    else if (which === "original") saveSvg(current?.original.parallel?.svg, `${page.prefix}-form-0`, format);
+    else saveSvg(selected?.tree?.parallel?.svg, `${page.prefix}-form-${selected?.id}`, format);
 }
 
 // ---------- Старт ----------
@@ -176,6 +194,11 @@ $("more").addEventListener("click", () => {
 document.querySelectorAll("[data-download]").forEach(button =>
     button.addEventListener("click", () => saveImage(button.dataset.download, button.dataset.format)));
 
+$("laws")?.addEventListener("change", () => {
+    const expression = $("expression").value.trim();
+    if (expression) build(expression);
+});
+
 loadSamples();
 const fromHash = decodeURIComponent(location.hash.slice(1));
-build(fromHash || "a*b-2*a+b*c-c*2");
+build(fromHash || page.default);

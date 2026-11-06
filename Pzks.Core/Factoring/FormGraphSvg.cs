@@ -31,7 +31,8 @@ public static class FormGraphSvg
 
         var nodes = new SortedSet<int>();
         var minOperations = result.Forms.MinBy(f => (f.Operations, f.Tiers, f.Id))!;
-        foreach (var form in result.Ranked.Prepend(minOperations))
+        var first = result.ExpandedId is int expanded ? [result.Ranked[0], result.Forms[expanded], minOperations] : new[] { minOperations };
+        foreach (var form in first.Concat(result.Ranked))
         {
             var path = result.PathTo(form.Id);
             if (nodes.Count + path.Count(id => !nodes.Contains(id)) > MaxNodes)
@@ -63,10 +64,11 @@ public static class FormGraphSvg
         }
 
         int? best = result.Best?.Id;
+        bool lawsLine = result.Laws.HasFlag(Laws.Distributive);
         var legend = nodes.Order().Select(id => result.Forms[id]).ToList();
         double legendTop = Margin + layers.Count * LayerHeight - LayerHeight / 2 + Radius + 20;
-        double height = legendTop + (legend.Count + 1) * LegendLine + Margin / 2;
-        double legendWidth = legend.Max(f => LegendText(f).Length) * 7.2 + Margin * 2;
+        double height = legendTop + (legend.Count + 1 + (lawsLine ? 1.5 : 0)) * LegendLine + Margin / 2;
+        double legendWidth = Math.Max(legend.Max(f => LegendText(f).Length), lawsLine ? 75 : 0) * 7.2 + Margin * 2;
         double width = Math.Max(graphWidth + Margin * 2, legendWidth);
 
         var svg = new StringBuilder();
@@ -75,14 +77,14 @@ public static class FormGraphSvg
         svg.AppendLine("<rect width=\"100%\" height=\"100%\" fill=\"white\"/>");
 
         foreach (var edge in result.Edges.Where(e => shown.Contains(e.From) && shown.Contains(e.To)))
-            DrawEdge(svg, position[edge.From], position[edge.To], edge.Factor,
+            DrawEdge(svg, position[edge.From], position[edge.To], edge,
                 tree: result.Forms[edge.To].ParentId == edge.From);
 
         foreach (int id in nodes)
         {
             var form = result.Forms[id];
             var (x, y) = position[id];
-            string fill = id == best ? "#d9f2d9" : id == 0 ? "#eef3fb" : "white";
+            string fill = id == best ? "#d9f2d9" : id == 0 ? "#eef3fb" : id == result.ExpandedId ? "#fbe7d6" : "white";
             double stroke = id == best ? 2.4 : 1.2;
             svg.AppendLine($"<g class=\"form-node\" data-id=\"{id}\"><title>{Escape(LegendText(form))}</title>");
             svg.AppendLine($"<circle cx=\"{N(x)}\" cy=\"{N(y)}\" r=\"{N(Radius)}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{N(stroke)}\"/>");
@@ -90,6 +92,13 @@ public static class FormGraphSvg
             svg.AppendLine("</g>");
         }
 
+        if (lawsLine)
+        {
+            svg.AppendLine($"<text x=\"{N(Margin)}\" y=\"{N(legendTop)}\" font-size=\"13\">Підпис ребра: "
+                + $"<tspan fill=\"{LawColor(Laws.Distributive)}\" font-style=\"italic\">D — розкрито дужку (що внесено в дужку)</tspan>, "
+                + $"<tspan fill=\"{LawColor(Laws.Associative)}\" font-style=\"italic\">A — винесено множник</tspan></text>");
+            legendTop += LegendLine * 1.5;
+        }
         svg.AppendLine($"<text x=\"{N(Margin)}\" y=\"{N(legendTop)}\" font-size=\"14\" font-weight=\"bold\">Форми (ярусів / операцій):</text>");
         for (int i = 0; i < legend.Count; i++)
         {
@@ -101,8 +110,11 @@ public static class FormGraphSvg
         return svg.ToString();
     }
 
-    private static void DrawEdge(StringBuilder svg, (double X, double Y) from, (double X, double Y) to, string factor, bool tree)
+    private static string LawColor(Laws law) => law == Laws.Distributive ? "#b5520b" : "#1a4f9c";
+
+    private static void DrawEdge(StringBuilder svg, (double X, double Y) from, (double X, double Y) to, FormEdge edge, bool tree)
     {
+        string factor = edge.Factor;
         double dx = to.X - from.X, dy = to.Y - from.Y, length = Math.Sqrt(dx * dx + dy * dy);
         double ux = dx / length, uy = dy / length;
         double x1 = from.X + ux * Radius, y1 = from.Y + uy * Radius;
@@ -114,7 +126,7 @@ public static class FormGraphSvg
 
         // Біля дочірньої вершини ребра одного батька вже розійшлися, тому підписи не накладаються.
         double lx = x1 + (x2 - x1) * 0.7, ly = y1 + (y2 - y1) * 0.7;
-        svg.AppendLine($"<text x=\"{N(lx)}\" y=\"{N(ly + 4)}\" font-size=\"12\" font-style=\"italic\" text-anchor=\"middle\" fill=\"#1a4f9c\" stroke=\"white\" stroke-width=\"3\" paint-order=\"stroke\">{Escape(factor)}</text>");
+        svg.AppendLine($"<text x=\"{N(lx)}\" y=\"{N(ly + 4)}\" font-size=\"12\" font-style=\"italic\" text-anchor=\"middle\" fill=\"{LawColor(edge.Law)}\" stroke=\"white\" stroke-width=\"3\" paint-order=\"stroke\">{Escape(factor)}</text>");
     }
 
     private static string LegendText(EquivalentForm form) => $"{form.Id}: {form.Infix}   ({form.Tiers} / {form.Operations})";

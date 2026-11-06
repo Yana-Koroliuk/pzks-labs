@@ -1,13 +1,16 @@
+using System.Text;
 using Pzks.Core.Ast;
 using Pzks.Core.Parallelization;
 
 namespace Pzks.Core.Factoring;
 
 /// <summary>
-/// ЛР3: множина еквівалентних форм виразу за асоціативним законом у трактуванні пам'ятки —
-/// винесення спільного множника за дужки: ab + ac = a(b+c), a/c + b/c = (a+b)/c.
-/// 1. Вираз проходить етапи 1–2 ЛР2 (розкриття дужок, спрощення) — це вихідна форма №0.
-/// 2. Для кожної суми (на будь-якій глибині: у дужках, в аргументах функцій) і кожного множника,
+/// ЛР3–ЛР4: множина еквівалентних форм виразу.
+/// ЛР3 (A) — асоціативний закон у трактуванні пам'ятки, винесення спільного множника за дужки:
+/// ab + ac = a(b+c), a/c + b/c = (a+b)/c. ЛР4 (D) — дистрибутивний закон, розкриття дужок
+/// (див. FactoringExplorer.Distributive.cs). Закони можна поєднувати, як у прикладі пам'ятки.
+/// 1. Вираз проходить етапи 1–2 ЛР2 (розкриття дужок з + і -, спрощення) — це вихідна форма №0.
+/// 2. A: для кожної суми (на будь-якій глибині: у дужках, в аргументах функцій) і кожного множника,
 ///    що трапляється хоча б у двох доданках, множник виноситься з усіх таких доданків,
 ///    а якщо їх не більше чотирьох — і з кожної підмножини з двох і більше доданків.
 /// 3. Перебір у ширину: кожна нова форма знову розглядається як вихідна.
@@ -18,7 +21,7 @@ namespace Pzks.Core.Factoring;
 /// 5. Для кожної форми будується дерево паралельної форми ЛР2; найкраща — з найменшою кількістю
 ///    ярусів, далі — операцій.
 /// </summary>
-public static class FactoringExplorer
+public static partial class FactoringExplorer
 {
     public const int FullSearchForms = 1000;
     public const int BeamWidth = 40;
@@ -28,24 +31,25 @@ public static class FactoringExplorer
 
     private const int MaxSubsetTerms = 4;
 
-    public static FactoringResult Explore(string expression)
+    public static FactoringResult Explore(string expression) => Explore(expression, Laws.Associative);
+
+    public static FactoringResult Explore(string expression, Laws laws)
     {
         var original = ParallelTreeBuilder.Build(expression);
         if (!original.IsValid)
-            return new FactoringResult(original, [], [], false);
+            return new FactoringResult(original, [], [], false, laws);
 
         var start = ParallelTreeBuilder.Normalize(original.Source!);
-        return new Search(original, start, beamWidth: null, FullSearchForms).Run()
-            ?? new Search(original, start, BeamWidth, MaxForms).Run()
+        return new Search(original, start, laws, beamWidth: null, FullSearchForms).Run()
+            ?? new Search(original, start, laws, BeamWidth, MaxForms).Run()
             ?? throw new InvalidOperationException("Обмежений перебір не може перевищити ліміт форм");
     }
 
     /// <param name="beamWidth">null — повний перебір.</param>
-    private sealed class Search(ParallelResult original, Form start, int? beamWidth, int maxForms)
+    private sealed class Search(ParallelResult original, Form start, Laws laws, int? beamWidth, int maxForms)
     {
         private readonly List<EquivalentForm> _forms = [];
         private readonly List<Form> _states = [];
-        private readonly List<List<string>> _factors = [];
         private readonly Dictionary<string, int> _index = [];
         private readonly List<FormEdge> _edges = [];
         private readonly HashSet<(int, int)> _edgeKeys = [];
@@ -54,20 +58,20 @@ public static class FactoringExplorer
         /// <summary>null — повний перебір перевищив ліміт форм.</summary>
         public FactoringResult? Run()
         {
-            Add(start, null, 0, [], [], original);
+            Add(start, null, [], original);
 
             var frontier = new List<int> { 0 };
-            for (int depth = 1; frontier.Count > 0; depth++)
+            while (frontier.Count > 0)
             {
                 var next = new List<int>();
                 foreach (int from in frontier)
                 {
-                    foreach (var (result, move) in Moves(_states[from]))
+                    foreach (var (result, move) in Moves(_states[from], laws))
                     {
-                        var form = ParallelTreeBuilder.Normalize(ParallelTreeBuilder.Sequential(Flatten(result)));
+                        var form = Prepare(result);
                         if (_index.TryGetValue(Canon(form), out int existing))
                         {
-                            Link(from, existing, move.Factor);
+                            Link(from, existing, move);
                             continue;
                         }
                         if (_forms.Count >= maxForms)
@@ -78,15 +82,40 @@ public static class FactoringExplorer
                             continue;
                         }
 
-                        int id = Add(form, from, depth, [.. _factors[from], move.Factor], [.. _forms[from].Path, move], null);
-                        Link(from, id, move.Factor);
+                        int id = Add(form, from, [.. _forms[from].Path, move], null);
+                        Link(from, id, move);
                         next.Add(id);
                     }
                 }
                 frontier = Select(next);
             }
 
-            return new FactoringResult(original, _forms, _edges, _pruned);
+            int? expanded = laws.HasFlag(Laws.Distributive) ? ExpandAll() : null;
+            return new FactoringResult(original, _forms, _edges, _pruned, laws, expanded);
+        }
+
+        /// <summary>
+        /// Форма з усіма розкритими дужками (алгоритм методички): від форми №0 розкриття виконуються, доки
+        /// можливо. Після обмеженого перебору її може не бути в множині — тоді вона додається разом зі шляхом.
+        /// </summary>
+        private int ExpandAll()
+        {
+            int current = 0;
+            for (int guard = 0; guard < MaxForms; guard++)
+            {
+                var (result, move) = Moves(_states[current], Laws.Distributive).FirstOrDefault();
+                if (result is null)
+                    return current;
+
+                var form = Prepare(result);
+                if (!_index.TryGetValue(Canon(form), out int next))
+                    next = Add(form, current, [.. _forms[current].Path, move], null);
+                if (next == current)
+                    return current;
+                Link(current, next, move);
+                current = next;
+            }
+            return current;
         }
 
         private List<int> Select(List<int> next)
@@ -100,13 +129,13 @@ public static class FactoringExplorer
             return byTiers.Take(width / 2).Union(byOperations.Take(width - width / 2)).ToList();
         }
 
-        private void Link(int from, int to, string factor)
+        private void Link(int from, int to, FactoringStep move)
         {
             if (from != to && _edgeKeys.Add((from, to)))
-                _edges.Add(new FormEdge(from, to, factor));
+                _edges.Add(new FormEdge(from, to, move.Factor, move.Law));
         }
 
-        private int Add(Form form, int? parent, int depth, List<string> factors, List<FactoringStep> path, ParallelResult? parallel)
+        private int Add(Form form, int? parent, List<FactoringStep> path, ParallelResult? parallel)
         {
             int id = _forms.Count;
             string infix = ExprPrinter.ToInfix(ParallelTreeBuilder.Sequential(form));
@@ -114,25 +143,53 @@ public static class FactoringExplorer
             if (!parallel.IsValid)
                 throw new InvalidOperationException($"Форма «{infix}» не пройшла ЛР2");
 
-            string code = depth == 0 ? "0" : $"{depth}A{string.Join(",", factors)}";
-            _forms.Add(new EquivalentForm(id, parent, depth, code, infix, path, parallel));
+            _forms.Add(new EquivalentForm(id, parent, path.Count, Code(path), infix, path, parallel));
             _states.Add(form);
-            _factors.Add(factors);
             _index[Canon(form)] = id;
             return id;
         }
     }
 
-    // ---------- Можливі винесення ----------
+    /// <summary>Код у позначеннях пам'ятки: «3Aa,c,(b-2)», «4Dk,t,xAa» — кроки одного закону йдуть групою.</summary>
+    private static string Code(IReadOnlyList<FactoringStep> path)
+    {
+        if (path.Count == 0)
+            return "0";
+        var code = new StringBuilder().Append(path.Count);
+        for (int i = 0; i < path.Count; i++)
+        {
+            if (i == 0 || path[i].Law != path[i - 1].Law)
+                code.Append(path[i].Law.Letter());
+            else
+                code.Append(',');
+            code.Append(path[i].Factor);
+        }
+        return code.ToString();
+    }
 
-    /// <summary>Усі форми, які виходять з даної одним винесенням за дужки в будь-якій сумі.</summary>
-    private static IEnumerable<(Form Result, FactoringStep Move)> Moves(Form form)
+    /// <summary>Нова форма після кроку: злиття ланцюжків, спрощення ЛР2, знищення протилежних доданків.</summary>
+    private static Form Prepare(Form result)
+    {
+        var form = ParallelTreeBuilder.Normalize(ParallelTreeBuilder.Sequential(Flatten(result)));
+        var cancelled = CancelOpposites(form);
+        return ReferenceEquals(cancelled, form)
+            ? form
+            : ParallelTreeBuilder.Normalize(ParallelTreeBuilder.Sequential(cancelled));
+    }
+
+    // ---------- Можливі кроки ----------
+
+    /// <summary>
+    /// Усі форми, які виходять з даної одним кроком: винесенням за дужки в будь-якій сумі (A)
+    /// або розкриттям дужки в будь-якому добутку (D).
+    /// </summary>
+    private static IEnumerable<(Form Result, FactoringStep Move)> Moves(Form form, Laws laws)
     {
         if (form is CallForm call)
         {
             for (int i = 0; i < call.Arguments.Count; i++)
             {
-                foreach (var (child, move) in Moves(call.Arguments[i]))
+                foreach (var (child, move) in Moves(call.Arguments[i], laws))
                 {
                     var arguments = call.Arguments.ToList();
                     arguments[i] = child;
@@ -145,15 +202,20 @@ public static class FactoringExplorer
         if (form is not ChainForm chain)
             yield break;
 
-        if (chain.Kind == ChainKind.Sum)
+        if (chain.Kind == ChainKind.Sum && laws.HasFlag(Laws.Associative))
         {
             foreach (var move in FactorOut(chain))
+                yield return move;
+        }
+        if (chain.Kind == ChainKind.Product && laws.HasFlag(Laws.Distributive))
+        {
+            foreach (var move in Expand(chain))
                 yield return move;
         }
 
         for (int i = 0; i < chain.Parts.Count; i++)
         {
-            foreach (var (child, move) in Moves(chain.Parts[i].Item))
+            foreach (var (child, move) in Moves(chain.Parts[i].Item, laws))
             {
                 var parts = chain.Parts.ToList();
                 parts[i] = parts[i] with { Item = child };
@@ -270,6 +332,47 @@ public static class FactoringExplorer
                 parts.Add(part with { Item = item });
         }
         return parts is [{ Inverse: false } single] ? single.Item : chain with { Parts = parts };
+    }
+
+    /// <summary>
+    /// Однакові доданки з протилежними знаками взаємно знищуються і тоді, коли множники в них записані
+    /// в іншому порядку: x*3 - 3*x = 0 (ЛР2 знищує лише записані однаково). Без змін повертає ту саму форму.
+    /// </summary>
+    private static Form CancelOpposites(Form form)
+    {
+        switch (form)
+        {
+            case CallForm call:
+            {
+                var arguments = call.Arguments.Select(CancelOpposites).ToList();
+                return arguments.SequenceEqual(call.Arguments, ReferenceEqualityComparer.Instance)
+                    ? call
+                    : call with { Arguments = arguments };
+            }
+            case ChainForm chain:
+            {
+                var parts = chain.Parts.Select(p => p with { Item = CancelOpposites(p.Item) }).ToList();
+                bool changed = parts.Where((p, i) => !ReferenceEquals(p.Item, chain.Parts[i].Item)).Any();
+                if (chain.Kind == ChainKind.Sum)
+                {
+                    for (int i = 0; i < parts.Count; i++)
+                    {
+                        string key = Canon(parts[i].Item);
+                        int j = parts.FindIndex(i + 1, p => p.Inverse != parts[i].Inverse && Canon(p.Item) == key);
+                        if (j < 0)
+                            continue;
+                        parts.RemoveAt(j);
+                        parts.RemoveAt(i--);
+                        changed = true;
+                    }
+                    if (parts.Count == 0)
+                        return NumberForm.Of(0, "0");
+                }
+                return changed ? chain with { Parts = parts } : chain;
+            }
+            default:
+                return form;
+        }
     }
 
     /// <summary>Ключ форми без урахування порядку доданків і множників (переставний закон).</summary>

@@ -18,6 +18,8 @@ public sealed record SampleResponse(string Id, string Expression, string Descrip
             'P' => "brackets",
             'E' => "constants",
             'А' => "associative",
+            'Д' => "distributive",
+            _ when sample == MemoExpressions.DistributiveExample => "example",
             _ => "simplification",
         });
 }

@@ -20,6 +20,11 @@ app.MapGet("/api/lab3/samples", () => MemoExpressions.Associative.Select(SampleR
 app.MapPost("/api/factoring", (ParallelRequest request) =>
     FactoringResponse.From(FactoringExplorer.Explore(request.Expression ?? "")));
 
+app.MapGet("/api/lab4/samples", () => MemoExpressions.Lab4.Select(SampleResponse.From));
+
+app.MapPost("/api/lab4/forms", (FormsRequest request) =>
+    FactoringResponse.From(FactoringExplorer.Explore(request.Expression ?? "", request.ParsedLaws)));
+
 app.Lifetime.ApplicationStarted.Register(() => OpenBrowser(app.Urls.FirstOrDefault()));
 app.Run();
 
@@ -29,6 +34,7 @@ static void OpenBrowser(string? url)
         return;
     Console.WriteLine($"Сторінка ЛР2: {url}");
     Console.WriteLine($"Сторінка ЛР3: {url}/lab3.html");
+    Console.WriteLine($"Сторінка ЛР4: {url}/lab4.html");
     if (Environment.GetEnvironmentVariable("PZKS_NO_BROWSER") == "1")
         return;
     try

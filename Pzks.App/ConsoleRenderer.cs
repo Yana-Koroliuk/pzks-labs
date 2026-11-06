@@ -296,16 +296,23 @@ public static class ConsoleRenderer
                 Console.WriteLine(line);
         }
 
+        if (result.ExpandedId is int expandedId)
+        {
+            var expanded = result.Forms[expandedId];
+            Console.WriteLine();
+            WriteLine($"Усі дужки розкрито — форма №{expanded.Id} (код {expanded.Code}):", ConsoleColor.Cyan);
+            Console.WriteLine($"  {expanded.Infix}  (ярусів {expanded.Tiers}, операцій {expanded.Operations}, ширина {expanded.Width})");
+        }
+
         var best = result.Best!;
         Console.WriteLine();
         WriteLine($"Найкраща форма №{best.Id} (код {best.Code}):", ConsoleColor.Cyan);
         if (best.Path.Count == 0)
-            Console.WriteLine("  винесення за дужки не покращує вихідну форму");
+            Console.WriteLine(result.Laws == Laws.Associative
+                ? "  винесення за дужки не покращує вихідну форму"
+                : "  перетворення не покращують вихідну форму");
         for (int i = 0; i < best.Path.Count; i++)
-        {
-            var step = best.Path[i];
-            Console.WriteLine($"{i + 1,3}. винесено {step.Factor}: {step.Before} = {step.After}");
-        }
+            Console.WriteLine($"{i + 1,3}. {StepText(best.Path[i], result.Laws)}");
         Console.WriteLine($"Форма: {best.Infix}");
         Console.Write("Паралельна форма: ");
         WriteLine(ExprPrinter.ToGroupedInfix(best.Tree), ConsoleColor.Green);
@@ -324,6 +331,10 @@ public static class ConsoleRenderer
         Console.WriteLine($"Операцій: {start.Operations} → {best.Operations}");
         Console.WriteLine($"Найбільша ширина ярусу: {start.Width} → {best.Width}");
     }
+
+    private static string StepText(FactoringStep step, Laws laws) => step.Law == Laws.Distributive
+        ? $"D: розкрито дужку, внесено {step.Factor}: {step.Before} = {step.After}"
+        : $"{(laws == Laws.Associative ? "" : "A: ")}винесено {step.Factor}: {step.Before} = {step.After}";
 
     private static string StepName(StepKind kind) => kind switch
     {

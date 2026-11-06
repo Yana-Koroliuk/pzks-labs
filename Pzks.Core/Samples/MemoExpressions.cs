@@ -77,7 +77,14 @@ public static class MemoExpressions
         new("Д5", "a-b*(k-t+(f-g)*(f*5.9-q)+(w-y*(m-1))/p)-(x-3)*(x+3)/(d+q-w)"),
     ];
 
+    /// <summary>Приклад графа перетворень з розділу «Лаб 3 та 4» пам'ятки: (a-c)k + (b-c)t - (a-t)x.</summary>
+    public static readonly SampleExpression DistributiveExample = new("Приклад", "(a-c)*k+(b-c)*t-(a-t)*x",
+        "Приклад графа з пам'ятки");
+
+    /// <summary>Тести ЛР4: Д1–Д5 і приклад з пам'ятки.</summary>
+    public static IReadOnlyList<SampleExpression> Lab4 => [.. Distributive, DistributiveExample];
+
     /// <summary>Вирази, які за граматикою ЛР1 мають бути коректними (вхідні дані ЛР2–ЛР4).</summary>
     public static IEnumerable<SampleExpression> AllValid =>
-        Lab2.Concat(Commutative).Concat(Associative).Concat(Distributive);
+        Lab2.Concat(Commutative).Concat(Associative).Concat(Lab4);
 }

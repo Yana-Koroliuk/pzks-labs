@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ПЗКС · ЛР4: розкриття дужок</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-samples="/api/lab4/samples" data-api="/api/lab4/forms" data-group="Дистрибутивний закон"
+      data-prefix="lr4" data-default="(a-c)*k+(b-c)*t-(a-t)*x">
+<header>
+    <nav class="tabs">
+        <a href="index.html">ЛР2 · паралельна форма</a>
+        <a href="lab3.html">ЛР3 · винесення за дужки</a>
+        <a href="lab4.html" class="active">ЛР4 · розкриття дужок</a>
+    </nav>
+    <h1>ЛР4: множина еквівалентних форм виразу</h1>
+    <p>Дистрибутивний закон (варіант 8) — розкриття дужок: a(b + c) = ab + ac, (a + b)/c = a/c + b/c,
+        (a + b)(c + d) = ac + ad + bc + bd, x/(a + b)/c = x/(ac + bc)</p>
+</header>
+
+<main>
+    <section class="card input-card">
+        <form id="form" autocomplete="off">
+            <input id="expression" type="text" spellcheck="false"
+                   placeholder="Введіть вираз, наприклад (a-c)*k+(b-c)*t-(a-t)*x">
+            <button type="submit">Знайти форми</button>
+        </form>
+        <label class="laws">Закони:
+            <select id="laws">
+                <option value="DA" selected>D + A — розкриття дужок і винесення за дужки (як у прикладі пам'ятки)</option>
+                <option value="D">D — лише розкриття дужок</option>
+            </select>
+        </label>
+        <div id="samples" class="samples"></div>
+    </section>
+
+    <section id="result" hidden>
+        <div id="status" class="card status"></div>
+
+        <div id="lr1" class="card" hidden>
+            <h2>Помилки ЛР1</h2>
+            <div id="lr1-expression" class="expression-line"></div>
+            <ol id="lr1-errors" class="errors"></ol>
+            <div id="lr1-correction"></div>
+        </div>
+
+        <div id="zero-card" class="card danger" hidden>
+            <h2>Недопустимі операції — ділення на 0</h2>
+            <ol id="zero-errors" class="errors"></ol>
+            <p>Еквівалентні форми не будуються, доки вираз містить ділення на 0.</p>
+        </div>
+
+        <div id="metrics" class="metrics" hidden></div>
+
+        <div id="summary" class="card" hidden>
+            <div class="form-row"><span class="label">Вихідний вираз</span><code id="source-infix"></code></div>
+            <div class="form-row"><span class="label">Форма №0 (розкриття дужок з + і - та спрощення ЛР2)</span><code id="start-infix"></code></div>
+            <div class="form-row"><span class="label">Усі дужки розкрито</span><code id="expanded-infix"></code></div>
+            <div class="form-row"><span class="label">Найкраща форма</span><code id="best-infix" class="accent"></code></div>
+            <div class="form-row"><span class="label">Її паралельна форма</span><code id="best-parallel"></code></div>
+        </div>
+
+        <div id="selected-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2 id="selected-title"></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="selected" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="selected" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <ol id="selected-path" class="steps"></ol>
+            <div class="form-row"><span class="label">Форма</span><code id="selected-infix"></code></div>
+            <div class="form-row"><span class="label">Паралельна форма</span><code id="selected-parallel" class="accent"></code></div>
+            <div id="selected-svg" class="tree-scroll"></div>
+            <table id="selected-levels" class="levels"></table>
+        </div>
+
+        <div id="table-card" class="card" hidden>
+            <h2 id="table-title"></h2>
+            <p class="muted">Від кращої до гіршої: менше ярусів, потім менше операцій. Клік по рядку показує дерево форми.
+                Код — шлях у позначеннях пам'ятки: кількість кроків, D (розкрито дужку) і що внесено в дужку,
+                A (винесено за дужки) і винесені множники. Зелена — найкраща форма, помаранчева — усі дужки розкрито.</p>
+            <p id="truncated-note" class="note" hidden></p>
+            <table class="forms-table">
+                <thead><tr><th class="num">№</th><th class="code">Код</th><th class="num">Ярусів</th><th class="num">Операцій</th><th class="num">Ширина</th><th>Форма</th></tr></thead>
+                <tbody id="forms-body"></tbody>
+            </table>
+            <div class="table-more"><button id="more" type="button" class="small" hidden></button></div>
+        </div>
+
+        <div id="graph-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Граф перетворень <span id="graph-info" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="graph" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="graph" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <p class="muted">Вершина — форма (номер з таблиці), ребро — один крок: розкриття дужки (D, помаранчевий підпис)
+                або винесення за дужки (A, синій). Суцільне ребро — перше отримання форми, пунктирне — та сама форма
+                іншим шляхом.</p>
+            <div id="graph-svg" class="graph-scroll"></div>
+        </div>
+
+        <div id="original-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Для порівняння: дерево паралельної форми №0 (ЛР2) <span id="original-tiers" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="original" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="original" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <div id="original-svg" class="tree-scroll"></div>
+        </div>
+    </section>
+</main>
+
+<script src="common.js"></script>
+<script src="forms.js"></script>
+</body>
+</html>
