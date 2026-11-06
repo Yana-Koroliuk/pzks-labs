@@ -134,8 +134,6 @@ function renderMetrics(r) {
     show("metrics", !!(s && p));
     if (!s || !p) return;
 
-    const speedup = p.tiers > 0 ? p.operations / p.tiers : 0;
-    const efficiency = p.width > 0 ? speedup / p.width : 0;
     const metric = (name, before, after, hint = "") => el("div", { class: "metric" },
         el("div", { class: "name" }, name),
         el("div", { class: "value" }, String(before), el("span", { class: "arrow" }, "→"), el("span", { class: "after" }, String(after))),
@@ -144,15 +142,7 @@ function renderMetrics(r) {
     $("metrics").replaceChildren(
         metric("Ярусів", s.tiers, p.tiers, "довжина дерева, такти"),
         metric("Операцій", s.operations, p.operations, "спрощення зменшує кількість"),
-        metric("Ширина", s.width, p.width, "макс. операцій на ярусі"),
-        el("div", { class: "metric" },
-            el("div", { class: "name" }, "Прискорення S = T₁/Tₚ"),
-            el("div", { class: "value" }, p.tiers > 0 ? speedup.toFixed(2) : "—"),
-            el("div", { class: "hint" }, p.tiers > 0 ? `${p.operations} / ${p.tiers}` : "операцій немає")),
-        el("div", { class: "metric" },
-            el("div", { class: "name" }, "Ефективність E = S/p"),
-            el("div", { class: "value" }, p.width > 0 ? efficiency.toFixed(2) : "—"),
-            el("div", { class: "hint" }, p.width > 0 ? `p = ${p.width} процесори(ів)` : "")));
+        metric("Ширина", s.width, p.width, "макс. операцій на ярусі"));
 }
 
 function renderForms(r) {
@@ -183,8 +173,10 @@ function renderZeroErrors(r) {
 }
 
 function renderTrees(r) {
-    show("trees", !!(r.source && r.parallel));
-    if (!r.source || !r.parallel) return;
+    const visible = !!(r.source && r.parallel);
+    show("parallel-card", visible);
+    show("source-card", visible);
+    if (!visible) return;
     $("source-svg").innerHTML = r.source.svg;
     $("parallel-svg").innerHTML = r.parallel.svg;
     $("source-tiers").textContent = `· ярусів: ${r.source.tiers}`;
