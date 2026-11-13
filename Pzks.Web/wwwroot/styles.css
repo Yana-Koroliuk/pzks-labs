@@ -223,6 +223,16 @@ code.accent { background: var(--green-bg); color: #14532d; font-weight: 600; }
 .forms-table tr.original td.infix::after { content: " · вихідна"; color: var(--muted); font-family: "Segoe UI", sans-serif; }
 .table-more { margin-top: 10px; }
 
+/* ЛР5 */
+.params { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; font-size: 14px; color: var(--muted); }
+.params label { display: flex; align-items: center; gap: 6px; }
+.params input { width: 58px; padding: 4px 6px; font: inherit; color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+.params-sep { margin-left: 8px; }
+.gantt-scroll { overflow-x: auto; padding-top: 6px; }
+.gantt-scroll svg { display: block; }
+.small-text { font-size: 12px; }
+.load-table { margin-top: 12px; }
+
 .graph-scroll { overflow-x: auto; padding-top: 6px; }
 .graph-scroll svg { display: block; margin: 0 auto; }
 .graph-scroll svg .form-node { cursor: pointer; }

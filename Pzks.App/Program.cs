@@ -5,6 +5,7 @@ using Pzks.Core.Correction;
 using Pzks.Core.Factoring;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Samples;
+using Pzks.Core.Simulation;
 
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
@@ -39,6 +40,31 @@ if (args is ["--lr4", .. var lr4Rest])
     return;
 }
 
+if (args is ["--lr5", .. var lr5Rest])
+{
+    var vliw = new VliwParameters();
+    while (lr5Rest is [var option, var value, .. var optionRest] && option.StartsWith("--") && int.TryParse(value, out int number))
+    {
+        vliw = option switch
+        {
+            "--p" => vliw with { Processors = number },
+            "--banks" => vliw with { Banks = number },
+            "--add" => vliw with { Add = number },
+            "--sub" => vliw with { Subtract = number },
+            "--mul" => vliw with { Multiply = number },
+            "--div" => vliw with { Divide = number },
+            "--mem" => vliw with { Memory = number },
+            _ => vliw,
+        };
+        lr5Rest = optionRest;
+    }
+    if (lr5Rest.Length > 0)
+        SimulateVliw(string.Join(' ', lr5Rest), vliw);
+    else
+        RunVliwSamples(MemoExpressions.Lab5, vliw);
+    return;
+}
+
 if (args.Length > 0)
 {
     AnalyzeInDetail(string.Join(' ', args));
@@ -62,6 +88,9 @@ while (true)
     Console.WriteLine("ЛР4:");
     Console.WriteLine("  8 — Ввести вираз (еквівалентні форми: розкриття дужок)");
     Console.WriteLine("  9 — Тести ЛР4 з пам'ятки (Д1–Д5 і приклад графа)");
+    Console.WriteLine("ЛР5:");
+    Console.WriteLine("  10 — Ввести вираз (модель VLIW: 2 процесори, 1 банк пам'яті)");
+    Console.WriteLine("  11 — Тести ЛР5 (Т1–Т6 з прикладу)");
     Console.WriteLine("0 — Вихід");
     Console.Write("> ");
 
@@ -101,6 +130,13 @@ while (true)
             break;
         case "9":
             RunFactoringSamples(MemoExpressions.Lab4, ReadLaws());
+            break;
+        case "10":
+            if (ReadExpression() is { } lr5Expression)
+                SimulateVliw(lr5Expression, ReadVliwParameters());
+            break;
+        case "11":
+            RunVliwSamples(MemoExpressions.Lab5, ReadVliwParameters());
             break;
         case "0":
             return;
@@ -179,6 +215,35 @@ static void RunFactoringSamples(IEnumerable<SampleExpression> samples, Laws laws
         ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
         ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
         ConsoleRenderer.PrintFactoring(FactoringExplorer.Explore(sample.Expression, laws));
+    }
+}
+
+static VliwParameters ReadVliwParameters()
+{
+    var defaults = new VliwParameters();
+    Console.WriteLine($"Параметри системи (Enter залишає варіант 66: {defaults})");
+    Console.Write("Процесорів, банків, +, -, *, /, пам'ять через пробіл: ");
+    var numbers = (Console.ReadLine() ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(s => int.TryParse(s, out int n) ? n : (int?)null).ToList();
+    int Get(int i, int fallback) => i < numbers.Count && numbers[i] is int n ? n : fallback;
+    return new VliwParameters(Get(0, defaults.Processors), Get(1, defaults.Banks), Get(2, defaults.Add),
+        Get(3, defaults.Subtract), Get(4, defaults.Multiply), Get(5, defaults.Divide), Get(6, defaults.Memory));
+}
+
+static void SimulateVliw(string expression, VliwParameters parameters)
+{
+    Console.WriteLine();
+    ConsoleRenderer.PrintVliw(VliwModel.Run(expression, parameters));
+}
+
+static void RunVliwSamples(IEnumerable<SampleExpression> samples, VliwParameters parameters)
+{
+    foreach (var sample in samples)
+    {
+        Console.WriteLine();
+        ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
+        ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
+        ConsoleRenderer.PrintVliw(VliwModel.Run(sample.Expression, parameters));
     }
 }
 

@@ -84,6 +84,17 @@ public static class MemoExpressions
     /// <summary>Тести ЛР4: Д1–Д5 і приклад з пам'ятки.</summary>
     public static IReadOnlyList<SampleExpression> Lab4 => [.. Distributive, DistributiveExample];
 
+    /// <summary>Тестові вирази з прикладу виконання ЛР5.</summary>
+    public static readonly IReadOnlyList<SampleExpression> Lab5 =
+    [
+        new("Т1", "a+b+c*d+d/e-g*h+i/j", "Різні операції"),
+        new("Т2", "a+b+c+d+e+f+g+h", "Лише додавання"),
+        new("Т3", "a/b/c/d/e/f/g/h", "Ділення"),
+        new("Т4", "a*2 + b/(b-a) - 1/x4/x3", "Дужки і ділення"),
+        new("Т5", "a+b+c+d+e+f+g+h+i+j+k+l+m*n+o+p+q+a+a+t+u+v+w+x+y+z", "Довгий вираз"),
+        new("Т6", "5040/8/7/6/5/4/3/2", "Константний вираз"),
+    ];
+
     /// <summary>Вирази, які за граматикою ЛР1 мають бути коректними (вхідні дані ЛР2–ЛР4).</summary>
     public static IEnumerable<SampleExpression> AllValid =>
         Lab2.Concat(Commutative).Concat(Associative).Concat(Lab4);

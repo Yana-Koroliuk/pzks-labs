@@ -19,6 +19,7 @@ public sealed record SampleResponse(string Id, string Expression, string Descrip
             'E' => "constants",
             'А' => "associative",
             'Д' => "distributive",
+            'Т' => "mandatory",
             _ when sample == MemoExpressions.DistributiveExample => "example",
             _ => "simplification",
         });

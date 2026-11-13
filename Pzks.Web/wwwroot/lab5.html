@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ПЗКС · ЛР5: модель VLIW-системи</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+    <nav class="tabs">
+        <a href="index.html">ЛР2 · паралельна форма</a>
+        <a href="lab3.html">ЛР3 · винесення за дужки</a>
+        <a href="lab4.html">ЛР4 · розкриття дужок</a>
+        <a href="lab5.html" class="active">ЛР5 · модель VLIW</a>
+    </nav>
+    <h1>ЛР5: час виконання виразу на VLIW-системі</h1>
+    <p>Варіант 66: система з наддовгим командним словом (VLIW), 2 процесори, 1 банк спільної пам'яті.
+        Команди одного слова стартують разом, такт слова визначає найдовша команда; банк обслуговує одне звернення за такт.</p>
+</header>
+
+<main>
+    <section class="card input-card">
+        <form id="form" autocomplete="off">
+            <input id="expression" type="text" spellcheck="false"
+                   placeholder="Введіть вираз, наприклад a+b+c*d+d/e-g*h+i/j">
+            <button type="submit">Змоделювати</button>
+        </form>
+        <div class="params">
+            <label>Процесорів <input id="p-processors" type="number" min="1" max="6" value="2"></label>
+            <label>Банків пам'яті <input id="p-banks" type="number" min="1" max="6" value="1"></label>
+            <span class="params-sep">Тривалість, тактів:</span>
+            <label>+ <input id="p-add" type="number" min="1" max="20" value="2"></label>
+            <label>− <input id="p-subtract" type="number" min="1" max="20" value="3"></label>
+            <label>* <input id="p-multiply" type="number" min="1" max="20" value="4"></label>
+            <label>/ <input id="p-divide" type="number" min="1" max="20" value="8"></label>
+            <label>читання / запис <input id="p-memory" type="number" min="1" max="10" value="1"></label>
+            <button id="reset" type="button" class="small">Варіант 66</button>
+        </div>
+        <div id="samples" class="samples"></div>
+    </section>
+
+    <section id="result" hidden>
+        <div id="status" class="card status"></div>
+
+        <div id="lr1" class="card" hidden>
+            <h2>Помилки ЛР1</h2>
+            <div id="lr1-expression" class="expression-line"></div>
+            <ol id="lr1-errors" class="errors"></ol>
+            <div id="lr1-correction"></div>
+        </div>
+
+        <div id="problem-card" class="card danger" hidden>
+            <h2 id="problem-title"></h2>
+            <ol id="problem-list" class="errors"></ol>
+        </div>
+
+        <div id="metrics" class="metrics" hidden></div>
+
+        <div id="tree-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Вхідні дані: дерево паралельної форми (ЛР2) <span id="tree-info" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="tree" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="tree" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <div class="form-row"><span class="label">Паралельна форма</span><code id="parallel-infix" class="accent"></code></div>
+            <div id="tree-svg" class="tree-scroll"></div>
+        </div>
+
+        <div id="graph-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Граф задачі <span id="graph-info" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="graph" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="graph" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <p class="muted">Кожна вершина є операцією: угорі номер задачі, нижче тривалість і тип (як у Eucalyptus).
+                Дуга веде від задачі-операнда до задачі, що використовує її результат; число на дузі означає тривалість передачі через пам'ять.
+                «*» позначає, що початкова задача читає вхідні дані.</p>
+            <div id="graph-svg" class="tree-scroll"></div>
+            <table class="forms-table">
+                <thead><tr><th class="num">№</th><th>Операція</th><th>Підвираз</th><th class="num">Ярус</th><th class="num">Тривалість</th>
+                    <th class="num">Пріоритет</th><th class="num">Слово</th><th class="num">Процесор</th><th class="num">Такти</th></tr></thead>
+                <tbody id="tasks-body"></tbody>
+            </table>
+        </div>
+
+        <div id="gantt-card" class="card tree-card" hidden>
+            <div class="tree-head">
+                <h2>Діаграма Ганта <span id="gantt-info" class="muted"></span></h2>
+                <div class="tree-buttons">
+                    <button type="button" class="small" data-download="gantt" data-format="png">PNG</button>
+                    <button type="button" class="small" data-download="gantt" data-format="svg">SVG</button>
+                </div>
+            </div>
+            <div id="gantt-svg" class="gantt-scroll"></div>
+        </div>
+
+        <div id="words-card" class="card" hidden>
+            <h2>Наддовгі командні слова</h2>
+            <p class="muted">Кожне слово містить по одній команді для кожного процесора (або прочерк, якщо готових задач менше).
+                Команда: читання операндів з банку → обчислення → запис результату. Слово триває стільки, скільки найдовша команда.</p>
+            <table class="forms-table">
+                <thead id="words-head"></thead>
+                <tbody id="words-body"></tbody>
+            </table>
+        </div>
+
+        <div id="calc-card" class="card" hidden>
+            <h2>Розрахунок метрик</h2>
+            <div id="calc"></div>
+            <table class="forms-table load-table">
+                <thead><tr><th>Пристрій</th><th class="num">Задач</th><th class="num">Читань</th><th class="num">Обчислень</th>
+                    <th class="num">Записів</th><th class="num">Очікування</th><th class="num">Корисно</th><th class="num">Завантаження</th></tr></thead>
+                <tbody id="load-body"></tbody>
+            </table>
+        </div>
+
+        <div id="sweep-card" class="card" hidden>
+            <h2>Залежність від кількості процесорів <span id="sweep-info" class="muted"></span></h2>
+            <table class="forms-table">
+                <thead><tr><th class="num">Процесорів</th><th class="num">Слів</th><th class="num">Tp</th><th class="num">Очікування пам'яті</th>
+                    <th class="num">Ky = T1/Tp</th><th class="num">E = Ky/p</th></tr></thead>
+                <tbody id="sweep-body"></tbody>
+            </table>
+        </div>
+
+        <div id="check-card" class="card" hidden>
+            <h2>Перевірка в Eucalyptus</h2>
+            <ol class="steps">
+                <li>Кнопка налаштувань → система «VLIW(СНКС)», <span id="check-system"></span>.</li>
+                <li>Тривалості операцій: <span id="check-durations"></span>.</li>
+                <li>Побудувати граф задачі як на рисунку вище: задачі з тими самими номерами й типами, зв'язки з вагою <span id="check-memory"></span>.</li>
+                <li>Режим «Занурення»: розмістити задачі в порядку з таблиці (порядок усередині слова впливає на те, хто першим отримає банк).</li>
+                <li>Кнопка розрахунку параметрів → час, прискорення, ефективність мають збігтися з метриками вище.</li>
+            </ol>
+            <table class="forms-table">
+                <thead><tr><th class="num">Крок</th><th class="num">Слово</th><th class="num">Задача</th><th>Операція</th><th class="num">Процесор</th><th class="num">Такт</th></tr></thead>
+                <tbody id="check-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="common.js"></script>
+<script src="lab5.js"></script>
+</body>
+</html>

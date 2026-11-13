@@ -7,6 +7,7 @@ using Pzks.Core.Factoring;
 using Pzks.Core.Lexing;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Parsing;
+using Pzks.Core.Simulation;
 
 namespace Pzks.App;
 
@@ -331,6 +332,171 @@ public static class ConsoleRenderer
         Console.WriteLine($"Операцій: {start.Operations} → {best.Operations}");
         Console.WriteLine($"Найбільша ширина ярусу: {start.Width} → {best.Width}");
     }
+
+    /// <summary>ЛР5: граф задачі, командні слова, діаграма Ганта і метрики VLIW-системи.</summary>
+    public static void PrintVliw(VliwResult result)
+    {
+        var parallel = result.Parallel;
+        Console.WriteLine($"Вираз: {parallel.Analysis.Expression}");
+        Console.WriteLine($"Система: VLIW, {result.Parameters}");
+        foreach (var error in result.ParameterErrors)
+            WriteLine($"  Параметри: {error}", SyntaxColor);
+        if (result.ParameterErrors.Count > 0)
+            return;
+        if (parallel.Source is null)
+        {
+            PrintErrors(parallel.Analysis);
+            WriteLine("Вираз не пройшов перевірку ЛР1, тому модель не запускається.", SyntaxColor);
+            return;
+        }
+        WriteLine("Перевірка ЛР1: помилок немає.", ConsoleColor.Green);
+        if (!parallel.IsValid)
+        {
+            foreach (var error in parallel.Errors)
+                WriteLine($"  терм «{error.Term}»: {error.Message}", SyntaxColor);
+            WriteLine("Вираз містить ділення на 0, тому дерево ЛР2 не будується і модель не запускається.", SyntaxColor);
+            return;
+        }
+
+        var tree = parallel.Tree!;
+        Console.Write("Паралельна форма (ЛР2): ");
+        WriteLine(ExprPrinter.ToGroupedInfix(tree), ConsoleColor.Green);
+        foreach (var error in result.GraphErrors)
+            WriteLine($"  {error}", SyntaxColor);
+        if (result.GraphErrors.Count > 0)
+            return;
+        if (result.NoOperations)
+        {
+            WriteLine($"Після спрощення вираз дорівнює {ExprPrinter.ToInfix(tree)}: операцій немає, граф задачі не будується.", ConsoleColor.Yellow);
+            return;
+        }
+
+        var schedule = result.Schedule!;
+        var graph = schedule.Graph;
+        Console.WriteLine();
+        WriteLine("Граф задачі (операції дерева ЛР2; [n]: результат задачі n, *: вхідні дані з пам'яті):", ConsoleColor.Cyan);
+        Console.WriteLine($"{"№",4}  {"Операція",-14} {"Ярус",4}  {"Тривалість",10}  {"Пріоритет",9}  Результат іде в");
+        foreach (var task in graph.Tasks)
+        {
+            string text = (task.IsInitial ? "* " : "  ") + task.Text;
+            string consumer = task.Consumer is int c ? $"задачу {c}" : "результат виразу";
+            Console.WriteLine($"{task.Id,4}  {text,-14} {task.Tier,4}  {task.Duration,10}  {task.Priority,9}  {consumer}");
+        }
+
+        Console.WriteLine();
+        WriteLine("Наддовгі командні слова (команда = читання операндів → обчислення → запис результату):", ConsoleColor.Cyan);
+        foreach (var word in schedule.Words)
+        {
+            var commands = Enumerable.Range(1, schedule.Parameters.Processors).Select(p =>
+                word.Commands.FirstOrDefault(c => c.Processor == p) is { } c
+                    ? $"P{p}: [{c.Task}] {graph[c.Task].Text} ({c.Start}–{c.End}{(c.Waits > 0 ? $", очікування {c.Waits}" : "")})"
+                    : $"P{p}: —");
+            Console.WriteLine($"  Слово {word.Index,2}, такти {word.Start}–{word.End} ({word.Length}): {string.Join(" | ", commands)}");
+        }
+
+        Console.WriteLine();
+        WriteLine("Діаграма Ганта (R*: читання вхідних даних, Rn: читання результату n, n+: обчислення задачі n, Wn: запис, ~~: очікування банку):",
+            ConsoleColor.Cyan);
+        PrintGantt(schedule);
+
+        Console.WriteLine();
+        WriteLine("Метрики (час у тактах):", ConsoleColor.Cyan);
+        int initial = graph.Tasks.Count(t => t.IsInitial), durations = graph.Tasks.Sum(t => t.Duration);
+        int memory = schedule.Parameters.Memory, p = schedule.Parameters.Processors;
+        Console.WriteLine($"  T1 = {initial}·{memory} (читання вхідних даних) + {durations} (обчислення) + {graph.Tasks.Count}·{memory} (запис) = {schedule.SequentialTime}");
+        Console.WriteLine($"  Tp = {schedule.ParallelTime}: кінець останнього командного слова (слів: {schedule.Words.Count})");
+        Console.Write("  Ky = T1 / Tp = ");
+        WriteLine($"{schedule.SequentialTime} / {schedule.ParallelTime} = {F(schedule.Speedup)}", ConsoleColor.Green);
+        Console.Write($"  E  = Ky / p = {F(schedule.Speedup)} / {p} = ");
+        WriteLine(F(schedule.Efficiency), ConsoleColor.Green);
+        if (F(schedule.EucalyptusEfficiency) != F(schedule.Efficiency))
+            Console.WriteLine($"       (Eucalyptus ділить уже округлене Ky і показує {F(schedule.EucalyptusEfficiency)})");
+        Console.WriteLine($"  Ea = Ky / pa = {F(schedule.Speedup)} / {schedule.ActiveProcessors} = {F(schedule.ActiveEfficiency)}  (pa: процесори, що виконали задачі)");
+        Console.WriteLine($"  Конфлікти пам'яті: тактів очікування банку {schedule.MemoryWaits}; ширина дерева ЛР2: {TreeLevels.Width(tree)}");
+        for (int i = 1; i <= p; i++)
+            Console.WriteLine($"  P{i}: корисних тактів {schedule.UsefulCells(i)} з {schedule.ParallelTime} (читання {schedule.Count(i, CellKind.Read)}, "
+                + $"обчислення {schedule.Count(i, CellKind.Compute)}, запис {schedule.Count(i, CellKind.Write)}, очікування {schedule.Count(i, CellKind.Wait)}), завантаження {F(schedule.ProcessorEfficiency(i))}");
+
+        Console.WriteLine();
+        WriteLine($"Залежність від кількості процесорів (банків пам'яті: {schedule.Parameters.Banks}):", ConsoleColor.Cyan);
+        Console.WriteLine($"  {"p",3}  {"Слів",5}  {"Tp",5}  {"Очікування",10}  {"Ky",6}  {"E",6}");
+        foreach (var row in result.Sweep)
+        {
+            string line = $"  {row.Processors,3}  {row.Words,5}  {row.ParallelTime,5}  {row.MemoryWaits,10}  {F(row.Speedup),6}  {F(row.Efficiency),6}";
+            if (row.Processors == p)
+                WriteLine(line, ConsoleColor.Green);
+            else
+                Console.WriteLine(line);
+        }
+
+        Console.WriteLine();
+        WriteLine("Розміщення для перевірки в Eucalyptus (у такому порядку):", ConsoleColor.Cyan);
+        int step = 0;
+        foreach (var (word, command) in schedule.Placement)
+            Console.WriteLine($"  {++step,3}. слово {word.Index,2}: задача {command.Task,2} ({graph[command.Task].Text}) → P{command.Processor}, такт {command.Start}");
+    }
+
+    private static void PrintGantt(VliwSchedule schedule, int perLine = 20)
+    {
+        const int width = 5;
+        int total = schedule.ParallelTime;
+        var wordAt = schedule.Words.ToDictionary(w => w.Start, w => w.Index);
+        for (int from = 1; from <= total; from += perLine)
+        {
+            int to = Math.Min(total, from + perLine - 1);
+            var tacts = Enumerable.Range(from, to - from + 1).ToList();
+            Console.WriteLine("  " + "Слово".PadRight(8) + string.Concat(tacts.Select(t => (wordAt.TryGetValue(t, out int w) ? $"|{w}" : "").PadRight(width))));
+            Console.WriteLine("  " + "Такт".PadRight(8) + string.Concat(tacts.Select(t => t.ToString().PadRight(width))));
+            for (int p = 0; p < schedule.Processors.Count; p++)
+            {
+                Console.Write("  " + $"P{p + 1}".PadRight(8));
+                foreach (int t in tacts)
+                {
+                    var cell = schedule.Processors[p][t - 1];
+                    string text = cell.Kind switch
+                    {
+                        CellKind.Read => cell.Source == 0 ? "R*" : $"R{cell.Source}",
+                        CellKind.Compute => $"{cell.Task}{schedule.Graph[cell.Task].Operator}",
+                        CellKind.Write => $"W{cell.Task}",
+                        CellKind.Wait => "~~",
+                        _ => ".",
+                    };
+                    Write(text.PadRight(width), cell.Kind switch
+                    {
+                        CellKind.Read => ConsoleColor.Blue,
+                        CellKind.Compute => ConsoleColor.Green,
+                        CellKind.Write => ConsoleColor.Red,
+                        _ => ConsoleColor.DarkGray,
+                    });
+                }
+                Console.WriteLine();
+            }
+            for (int b = 0; b < schedule.Banks.Count; b++)
+            {
+                Console.Write("  " + $"Банк {b + 1}".PadRight(8));
+                foreach (int t in tacts)
+                {
+                    var cell = schedule.Banks[b][t - 1];
+                    string text = cell.Kind switch
+                    {
+                        CellKind.Read => cell.Input ? $"R*{cell.Data}" : $"R{cell.Data}",
+                        CellKind.Write => $"W{cell.Data}",
+                        _ => ".",
+                    };
+                    Write(text.PadRight(width), cell.Kind switch
+                    {
+                        CellKind.Read => ConsoleColor.Blue,
+                        CellKind.Write => ConsoleColor.Red,
+                        _ => ConsoleColor.DarkGray,
+                    });
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+        }
+    }
+
+    private static string F(double value) => value.ToString("F2", CultureInfo.InvariantCulture);
 
     private static string StepText(FactoringStep step, Laws laws) => step.Law == Laws.Distributive
         ? $"D: розкрито дужку, внесено {step.Factor}: {step.Before} = {step.After}"
