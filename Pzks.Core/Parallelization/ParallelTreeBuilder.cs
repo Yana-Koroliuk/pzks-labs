@@ -7,9 +7,10 @@ namespace Pzks.Core.Parallelization;
 /// 1. Дерево з ЛР1 переводиться в ланцюжки сум і добутків; дужки з + та - розкриваються.
 /// 2. Спрощення: обчислення констант, прибирання 0 і 1, множення на 0, подвійний мінус,
 ///    взаємне знищення однакових доданків; ділення на 0 зупиняє побудову.
-/// 3. Кожен ланцюжок будується як дерево мінімальної висоти без зміни порядку операндів;
-///    віднімання і ділення групуються через додавання і множення:
-///    a-b-c-d = (a-b)-(c+d), a/b/c/d = (a/b)/(c*d).
+/// 3. Кожен ланцюжок будується як дерево мінімальної висоти; віднімання і ділення групуються
+///    через додавання і множення: a-b-c-d = (a-b)-(c+d), a/b/c/d = (a/b)/(c*d).
+///    Порядок операндів зберігається, якщо перестановка (комутативність) не зменшує висоту:
+///    a-b*c+k = (a+k)-b*c.
 /// </summary>
 public static class ParallelTreeBuilder
 {
@@ -403,15 +404,20 @@ public static class ParallelTreeBuilder
             }
 
             var root = Make(0, n - 1);
+            var commuted = n >= 3 ? Commute(items, chain.Kind) : null;
+            bool reordered = commuted is not null && TreeLevels.Tiers(commuted.Node) < height[0, n - 1];
+            if (reordered)
+                root = commuted!;
             var tree = Chain(chain.Kind, [(root.Node, root.Inverse)]);
 
             if (n >= 3)
             {
                 var sequential = Sequential(chain);
                 string after = ExprPrinter.ToGroupedInfix(tree);
+                string note = reordered ? ", операнди переставлено" : "";
                 if (ExprPrinter.ToGroupedInfix(sequential) != after)
                     Log(StepKind.Regrouping,
-                        $"{ExprPrinter.ToInfix(sequential)}  →  {after}   (ярусів: {TreeLevels.Tiers(sequential)} → {TreeLevels.Tiers(tree)})");
+                        $"{ExprPrinter.ToInfix(sequential)}  →  {after}   (ярусів: {TreeLevels.Tiers(sequential)} → {TreeLevels.Tiers(tree)}{note})");
             }
             return tree;
 
@@ -424,6 +430,28 @@ public static class ParallelTreeBuilder
                 char op = chain.Kind.Operator(left.Inverse != right.Inverse);
                 return new Group(new BinaryNode(op, left.Node, right.Node), left.Inverse);
             }
+        }
+
+        /// <summary>
+        /// Дерево мінімальної висоти з перестановкою операндів: щоразу об'єднуються дві групи найменшої висоти
+        /// (за рівності ті, що стоять раніше). Група з плюсом (множник) стає лівою: x-y, x/y.
+        /// </summary>
+        private static Group Commute(List<Group> items, ChainKind kind)
+        {
+            var pool = items.Select((g, i) => (Group: g, Height: TreeLevels.Tiers(g.Node), First: i)).ToList();
+            while (pool.Count > 1)
+            {
+                var pair = pool.OrderBy(x => x.Height).ThenBy(x => x.First).Take(2).OrderBy(x => x.First).ToList();
+                var (left, right) = (pair[0], pair[1]);
+                if (left.Group.Inverse && !right.Group.Inverse)
+                    (left, right) = (right, left);
+                char op = kind.Operator(left.Group.Inverse != right.Group.Inverse);
+                pool.Remove(pair[0]);
+                pool.Remove(pair[1]);
+                pool.Add((new Group(new BinaryNode(op, left.Group.Node, right.Group.Node), left.Group.Inverse),
+                    1 + Math.Max(left.Height, right.Height), Math.Min(left.First, right.First)));
+            }
+            return pool[0].Group;
         }
 
         private static int Imbalance(int i, int k, int j) => Math.Abs((k - i + 1) - (j - k));

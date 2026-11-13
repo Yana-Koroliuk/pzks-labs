@@ -59,11 +59,11 @@ public class DistributiveTests
     }
 
     [Theory]
-    [InlineData("Д1", "a*(b+c-1)*d", 4, 4)]
+    [InlineData("Д1", "a*(b+c-1)*d", 3, 4)]
     [InlineData("Д2", "(a-c)*(b-k+1)", 3, 4)]
-    [InlineData("Д3", "(1/e-d/e)/(a+b-2)", 3, 6)]
+    [InlineData("Д3", "(1-d)/(a+b-2)/e", 3, 5)]
     [InlineData("Д4", "a-b*(k-t)-(f-g)*(f*5.9-q)-(f+g)/(d+q-w)", 5, 13)]
-    [InlineData("Д5", "a-b*k+b*t-b*(f-g)*(f*5.9-q)-(b*w-b*y*(m-1))/p-(x*x-9)/(d+q-w)", 6, 23)]
+    [InlineData("Д5", "a-b*k+b*t-b*(f-g)*(f*5.9-q)-b*(w-y*m+y)/p-(x*x-9)/(d+q-w)", 5, 22)]
     public void OpeningBrackets_FindsExpectedBestForm(string id, string best, int tiers, int operations)
     {
         var result = FactoringExplorer.Explore(Memo(id), Laws.Distributive);
@@ -75,9 +75,9 @@ public class DistributiveTests
     }
 
     [Theory]
-    [InlineData("Д1", "a*d*(b+c)-a*d", 3, 5)]
+    [InlineData("Д1", "a*(b+c-1)*d", 3, 4)]
     [InlineData("Д2", "(a-c)*(b-k+1)", 3, 4)]
-    [InlineData("Д3", "(1/e-d/e)/(a+b-2)", 3, 6)]
+    [InlineData("Д3", "(1-d)/(a+b-2)/e", 3, 5)]
     [InlineData("Д4", "a-b*(k-t)-(f-g)*(f*5.9-q)-(f+g)/(d+q-w)", 5, 13)]
     public void OpeningAndFactoring_FindsExpectedBestForm(string id, string best, int tiers, int operations)
     {
@@ -90,13 +90,16 @@ public class DistributiveTests
     }
 
     [Fact]
-    public void D1_BestFormOpensThenFactors()
+    public void D1_OpeningThenFactoringGivesSameTiersButMoreOperations()
     {
-        var best = FactoringExplorer.Explore(Memo("Д1"), Both).Best!;
+        var result = FactoringExplorer.Explore(Memo("Д1"), Both);
+        var factored = result.Forms.Single(f => f.Infix == "a*d*(b+c)-a*d");
 
-        Assert.Equal("3Da*dAa,d", best.Code);
-        Assert.Equal(new FactoringStep("a*d", "a*(b+c-1)*d", "a*b*d+a*c*d-a*d", Laws.Distributive), best.Path[0]);
-        Assert.All(best.Path.Skip(1), s => Assert.Equal(Laws.Associative, s.Law));
+        Assert.Equal("3Da*dAa,d", factored.Code);
+        Assert.Equal(new FactoringStep("a*d", "a*(b+c-1)*d", "a*b*d+a*c*d-a*d", Laws.Distributive), factored.Path[0]);
+        Assert.All(factored.Path.Skip(1), s => Assert.Equal(Laws.Associative, s.Law));
+        Assert.Equal((3, 5), (factored.Tiers, factored.Operations));
+        Assert.Equal(0, result.Best!.Id);
     }
 
     [Fact]
@@ -105,9 +108,9 @@ public class DistributiveTests
         var result = FactoringExplorer.Explore(Memo("Д5"), Both);
 
         Assert.True(result.Truncated);
-        Assert.Equal(8, result.Forms[0].Tiers);
-        Assert.Equal(6, result.Best!.Tiers);
-        Assert.True(result.Best.Operations <= 22);
+        Assert.Equal(7, result.Forms[0].Tiers);
+        Assert.Equal(5, result.Best!.Tiers);
+        Assert.True(result.Best.Operations <= 21);
         Assert.NotNull(result.ExpandedId);
         Assert.DoesNotContain("(x", result.Forms[result.ExpandedId!.Value].Infix);
     }

@@ -59,6 +59,20 @@ public class ParallelTreeBuilderTests
     }
 
     [Theory]
+    [InlineData("a+b*c+d", "(a+d)+b*c")]
+    [InlineData("a-b*c+k", "(a+k)-b*c")]
+    [InlineData("a+b*c*d*e+f+g", "((a+f)+g)+(b*c)*(d*e)")]
+    [InlineData("a/(b+c+d+e)/f/g", "((a/f)/g)/((b+c)+(d+e))")]
+    public void Commutativity_ReordersOperandsWhenItLowersTheTree(string expression, string expected)
+    {
+        var result = Build(expression);
+
+        Assert.Equal(expected, ExprPrinter.ToGroupedInfix(result.Tree!));
+        Assert.True(TreeLevels.Tiers(result.Tree!) < TreeLevels.Tiers(result.Source!));
+        Assert.Contains(result.Steps, s => s.Kind == StepKind.Regrouping && s.Description.Contains("операнди переставлено"));
+    }
+
+    [Theory]
     [InlineData("E1", "0.125")]
     [InlineData("E2", "-35")]
     [InlineData("E3", "39")]
