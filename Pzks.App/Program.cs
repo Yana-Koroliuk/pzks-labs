@@ -3,6 +3,7 @@ using Pzks.App;
 using Pzks.Core;
 using Pzks.Core.Correction;
 using Pzks.Core.Factoring;
+using Pzks.Core.Optimization;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Samples;
 using Pzks.Core.Simulation;
@@ -42,26 +43,21 @@ if (args is ["--lr4", .. var lr4Rest])
 
 if (args is ["--lr5", .. var lr5Rest])
 {
-    var vliw = new VliwParameters();
-    while (lr5Rest is [var option, var value, .. var optionRest] && option.StartsWith("--") && int.TryParse(value, out int number))
-    {
-        vliw = option switch
-        {
-            "--p" => vliw with { Processors = number },
-            "--banks" => vliw with { Banks = number },
-            "--add" => vliw with { Add = number },
-            "--sub" => vliw with { Subtract = number },
-            "--mul" => vliw with { Multiply = number },
-            "--div" => vliw with { Divide = number },
-            "--mem" => vliw with { Memory = number },
-            _ => vliw,
-        };
-        lr5Rest = optionRest;
-    }
-    if (lr5Rest.Length > 0)
-        SimulateVliw(string.Join(' ', lr5Rest), vliw);
+    var (vliw, expressionArgs) = ParseVliwOptions(lr5Rest);
+    if (expressionArgs.Length > 0)
+        SimulateVliw(string.Join(' ', expressionArgs), vliw);
     else
         RunVliwSamples(MemoExpressions.Lab5, vliw);
+    return;
+}
+
+if (args is ["--lr6", .. var lr6Rest])
+{
+    var (vliw, expressionArgs) = ParseVliwOptions(lr6Rest);
+    if (expressionArgs.Length > 0)
+        Optimize(string.Join(' ', expressionArgs), vliw);
+    else
+        RunOptimizationStudy(MemoExpressions.Lab6, vliw);
     return;
 }
 
@@ -91,6 +87,9 @@ while (true)
     Console.WriteLine("ЛР5:");
     Console.WriteLine("  10 — Ввести вираз (модель VLIW: 2 процесори, 1 банк пам'яті)");
     Console.WriteLine("  11 — Тести ЛР5 (Т1–Т6 з прикладу)");
+    Console.WriteLine("ЛР6:");
+    Console.WriteLine("  12 — Ввести вираз (вибір оптимальної форми для VLIW)");
+    Console.WriteLine("  13 — Дослідження ЛР6 (прості, середні і складні вирази)");
     Console.WriteLine("0 — Вихід");
     Console.Write("> ");
 
@@ -137,6 +136,13 @@ while (true)
             break;
         case "11":
             RunVliwSamples(MemoExpressions.Lab5, ReadVliwParameters());
+            break;
+        case "12":
+            if (ReadExpression() is { } lr6Expression)
+                Optimize(lr6Expression, ReadVliwParameters());
+            break;
+        case "13":
+            RunOptimizationStudy(MemoExpressions.Lab6, ReadVliwParameters());
             break;
         case "0":
             return;
@@ -245,6 +251,50 @@ static void RunVliwSamples(IEnumerable<SampleExpression> samples, VliwParameters
         ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
         ConsoleRenderer.PrintVliw(VliwModel.Run(sample.Expression, parameters));
     }
+}
+
+static (VliwParameters Parameters, string[] Expression) ParseVliwOptions(string[] args)
+{
+    var vliw = new VliwParameters();
+    while (args is [var option, var value, .. var optionRest] && option.StartsWith("--") && int.TryParse(value, out int number))
+    {
+        vliw = option switch
+        {
+            "--p" => vliw with { Processors = number },
+            "--banks" => vliw with { Banks = number },
+            "--add" => vliw with { Add = number },
+            "--sub" => vliw with { Subtract = number },
+            "--mul" => vliw with { Multiply = number },
+            "--div" => vliw with { Divide = number },
+            "--mem" => vliw with { Memory = number },
+            _ => vliw,
+        };
+        args = optionRest;
+    }
+    return (vliw, args);
+}
+
+static void Optimize(string expression, VliwParameters parameters)
+{
+    Console.WriteLine();
+    ConsoleRenderer.PrintOptimization(FormOptimizer.Optimize(expression, parameters));
+}
+
+static void RunOptimizationStudy(IEnumerable<SampleExpression> samples, VliwParameters parameters)
+{
+    var results = new List<(string, OptimizationResult)>();
+    foreach (var sample in samples)
+    {
+        Console.WriteLine();
+        ConsoleRenderer.WriteLine(new string('═', 70), ConsoleColor.DarkGray);
+        ConsoleRenderer.WriteLine(Title(sample), ConsoleColor.Cyan);
+        var result = FormOptimizer.Optimize(sample.Expression, parameters);
+        ConsoleRenderer.PrintOptimization(result, top: 5);
+        results.Add((sample.Id, result));
+    }
+    Console.WriteLine();
+    ConsoleRenderer.WriteLine("Підсумок дослідження:", ConsoleColor.Cyan);
+    ConsoleRenderer.PrintOptimizationSummary(results);
 }
 
 static string Title(SampleExpression sample) =>

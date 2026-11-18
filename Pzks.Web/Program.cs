@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Pzks.Core.Factoring;
+using Pzks.Core.Optimization;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Samples;
 using Pzks.Core.Simulation;
@@ -31,6 +32,11 @@ app.MapGet("/api/lab5/samples", () => MemoExpressions.Lab5.Select(SampleResponse
 app.MapPost("/api/lab5/simulate", (VliwRequest request) =>
     VliwResponse.From(VliwModel.Run(request.Expression ?? "", request.Parameters)));
 
+app.MapGet("/api/lab6/samples", () => MemoExpressions.Lab6.Select(SampleResponse.From));
+
+app.MapPost("/api/lab6/optimize", (VliwRequest request) =>
+    OptimizationResponse.From(FormOptimizer.Optimize(request.Expression ?? "", request.Parameters)));
+
 app.Lifetime.ApplicationStarted.Register(() => OpenBrowser(app.Urls.FirstOrDefault()));
 app.Run();
 
@@ -42,6 +48,7 @@ static void OpenBrowser(string? url)
     Console.WriteLine($"Сторінка ЛР3: {url}/lab3.html");
     Console.WriteLine($"Сторінка ЛР4: {url}/lab4.html");
     Console.WriteLine($"Сторінка ЛР5: {url}/lab5.html");
+    Console.WriteLine($"Сторінка ЛР6: {url}/lab6.html");
     if (Environment.GetEnvironmentVariable("PZKS_NO_BROWSER") == "1")
         return;
     try

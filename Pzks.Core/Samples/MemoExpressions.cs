@@ -95,6 +95,22 @@ public static class MemoExpressions
         new("Т6", "5040/8/7/6/5/4/3/2", "Константний вираз"),
     ];
 
+    /// <summary>Вирази для дослідження ЛР6 з тестів ЛР3–ЛР4 пам'ятки: прості (П), середні (С) і складні (Ск).</summary>
+    public static readonly IReadOnlyList<SampleExpression> Lab6 =
+    [
+        new("П1", "a*b+a*c+b*c", "Простий, А1"),
+        new("П2", "a*(b-2)+c*(b-2)", "Простий, А2"),
+        new("П3", "a*(b+c-1)*d", "Простий, Д1"),
+        new("С1", "(a-c)*k+(b-c)*t-(a-t)*x", "Середній, приклад графа з пам'ятки"),
+        new("С2", "(1-d)/(a+b-2)/e", "Середній, Д3"),
+        new("С3", "a-b*(k-t)-(f-g)*(f*5.9-q)-(f+g)/(d+q-w)", "Середній, Д4"),
+        new("Ск1", "a + b*c + d + e*f*g + h*i + j*(k + L + m*(n-p*q+r) - s*t)", "Складний, К4"),
+        new("Ск2", "a-b*k+b*t-f*f*5.9+f*q+g*f*5.9-g*q-f/(d+q-w)-g/(d+q-w)", "Складний, А6"),
+        new("Ск3", "a-b*(k-t+(f-g)*(f*5.9-q)+(w-y*(m-1))/p)-(x-3)*(x+3)/(d+q-w)", "Складний, Д5"),
+        new("Ск4", "a-b*k+b*t-b*f*f*5.9+b*f*q+b*g*f*5.9-b*g*q-b*w/p+b*y*m/p-b*y/p-x*x/(d+q-w)+3*x/(d+q-w)+3*x/(d+q-w)+3*3/(d+q-w)",
+            "Складний, А7"),
+    ];
+
     /// <summary>Вирази, які за граматикою ЛР1 мають бути коректними (вхідні дані ЛР2–ЛР4).</summary>
     public static IEnumerable<SampleExpression> AllValid =>
         Lab2.Concat(Commutative).Concat(Associative).Concat(Lab4);

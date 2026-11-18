@@ -233,6 +233,19 @@ code.accent { background: var(--green-bg); color: #14532d; font-weight: 600; }
 .small-text { font-size: 12px; }
 .load-table { margin-top: 12px; }
 
+/* ЛР6 */
+.sub-title { margin-top: 18px !important; }
+.forms-table.compact { width: auto; min-width: 480px; margin-top: 8px; }
+.forms-table.compact .num { width: 160px; }
+.bars { display: grid; gap: 4px; }
+.bar-row { display: grid; grid-template-columns: 90px 1fr 110px; gap: 10px; align-items: center; font-size: 13px; }
+.bar-label { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.bar-track { background: #f1f5f9; border-radius: 4px; height: 14px; }
+.bar { display: block; height: 100%; border-radius: 4px; background: #94a3b8; }
+.bar.best { background: var(--green); }
+.bar.original { background: var(--accent); }
+.bar-value { font-variant-numeric: tabular-nums; }
+
 .graph-scroll { overflow-x: auto; padding-top: 6px; }
 .graph-scroll svg { display: block; margin: 0 auto; }
 .graph-scroll svg .form-node { cursor: pointer; }

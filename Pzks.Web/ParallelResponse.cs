@@ -12,8 +12,10 @@ public sealed record SampleResponse(string Id, string Expression, string Descrip
 {
     // Групи — кольори тестів у пам'ятці.
     public static SampleResponse From(SampleExpression sample) => new(sample.Id, sample.Expression, sample.Description,
-        sample.Id[0] switch
+        sample.Id.StartsWith("Ск") ? "simplification" : sample.Id[0] switch
         {
+            'П' => "mandatory",
+            'С' => "brackets",
             'М' => "mandatory",
             'P' => "brackets",
             'E' => "constants",

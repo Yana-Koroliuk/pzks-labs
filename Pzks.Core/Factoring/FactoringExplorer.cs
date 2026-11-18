@@ -45,8 +45,26 @@ public static partial class FactoringExplorer
             ?? throw new InvalidOperationException("Обмежений перебір не може перевищити ліміт форм");
     }
 
+    /// <summary>
+    /// ЛР6: направлений пошук. Перебір у ширину такий самий, як у Explore, але на кожен наступний крок переходять
+    /// лише beamWidth нових форм з найменшою оцінкою score (для ЛР6 це час виконання на заданій системі).
+    /// Пошук зупиняється, якщо найкраща оцінка не покращується patience кроків поспіль.
+    /// </summary>
+    public static FactoringResult ExploreDirected(string expression, Laws laws, Func<EquivalentForm, int> score,
+        int beamWidth, int patience, int maxForms = MaxForms)
+    {
+        var original = ParallelTreeBuilder.Build(expression);
+        if (!original.IsValid)
+            return new FactoringResult(original, [], [], false, laws);
+
+        var start = ParallelTreeBuilder.Normalize(original.Source!);
+        return new Search(original, start, laws, beamWidth, maxForms, score, patience).Run()!;
+    }
+
     /// <param name="beamWidth">null — повний перебір.</param>
-    private sealed class Search(ParallelResult original, Form start, Laws laws, int? beamWidth, int maxForms)
+    /// <param name="score">Оцінка для направленого пошуку; null — відбір за ярусами й операціями.</param>
+    private sealed class Search(ParallelResult original, Form start, Laws laws, int? beamWidth, int maxForms,
+        Func<EquivalentForm, int>? score = null, int patience = 0)
     {
         private readonly List<EquivalentForm> _forms = [];
         private readonly List<Form> _states = [];
@@ -54,11 +72,15 @@ public static partial class FactoringExplorer
         private readonly List<FormEdge> _edges = [];
         private readonly HashSet<(int, int)> _edgeKeys = [];
         private bool _pruned;
+        private int _bestScore;
+        private int _stale;
 
         /// <summary>null — повний перебір перевищив ліміт форм.</summary>
         public FactoringResult? Run()
         {
             Add(start, null, [], original);
+            if (score is not null)
+                _bestScore = score(_forms[0]);
 
             var frontier = new List<int> { 0 };
             while (frontier.Count > 0)
@@ -90,7 +112,7 @@ public static partial class FactoringExplorer
                 frontier = Select(next);
             }
 
-            int? expanded = laws.HasFlag(Laws.Distributive) ? ExpandAll() : null;
+            int? expanded = laws.HasFlag(Laws.Distributive) && score is null ? ExpandAll() : null;
             return new FactoringResult(original, _forms, _edges, _pruned, laws, expanded);
         }
 
@@ -120,6 +142,8 @@ public static partial class FactoringExplorer
 
         private List<int> Select(List<int> next)
         {
+            if (score is not null)
+                return SelectByScore(next);
             if (beamWidth is not int width || next.Count <= width)
                 return next;
 
@@ -127,6 +151,26 @@ public static partial class FactoringExplorer
             var byTiers = next.OrderBy(id => _forms[id].Tiers).ThenBy(id => _forms[id].Operations).ThenBy(id => id);
             var byOperations = next.OrderBy(id => _forms[id].Operations).ThenBy(id => _forms[id].Tiers).ThenBy(id => id);
             return byTiers.Take(width / 2).Union(byOperations.Take(width - width / 2)).ToList();
+        }
+
+        private List<int> SelectByScore(List<int> next)
+        {
+            if (next.Count == 0)
+                return next;
+
+            var ranked = next.OrderBy(id => score!(_forms[id])).ThenBy(id => _forms[id].Operations).ThenBy(id => id).ToList();
+            int best = score!(_forms[ranked[0]]);
+            if (best < _bestScore)
+                (_bestScore, _stale) = (best, 0);
+            else if (++_stale >= patience)
+            {
+                _pruned = true;
+                return [];
+            }
+
+            if (ranked.Count > beamWidth!.Value)
+                _pruned = true;
+            return ranked.Take(beamWidth.Value).ToList();
         }
 
         private void Link(int from, int to, FactoringStep move)

@@ -5,6 +5,7 @@ using Pzks.Core.Correction;
 using Pzks.Core.Diagnostics;
 using Pzks.Core.Factoring;
 using Pzks.Core.Lexing;
+using Pzks.Core.Optimization;
 using Pzks.Core.Parallelization;
 using Pzks.Core.Parsing;
 using Pzks.Core.Simulation;
@@ -434,6 +435,121 @@ public static class ConsoleRenderer
         int step = 0;
         foreach (var (word, command) in schedule.Placement)
             Console.WriteLine($"  {++step,3}. слово {word.Index,2}: задача {command.Task,2} ({graph[command.Task].Text}) → P{command.Processor}, такт {command.Start}");
+    }
+
+    /// <summary>ЛР6: моделювання всіх еквівалентних форм, оптимальна форма, направлений пошук і дослідження параметрів.</summary>
+    public static void PrintOptimization(OptimizationResult result, int top = 15)
+    {
+        var original = result.Factoring.Original;
+        Console.WriteLine($"Вираз: {original.Analysis.Expression}");
+        Console.WriteLine($"Система: VLIW, {result.Parameters}");
+        if (!result.Factoring.IsValid)
+        {
+            if (original.Source is null)
+            {
+                PrintErrors(original.Analysis);
+                WriteLine("Вираз не пройшов перевірку ЛР1, тому форми не будуються.", SyntaxColor);
+            }
+            else
+            {
+                foreach (var error in original.Errors)
+                    WriteLine($"  терм «{error.Term}»: {error.Message}", SyntaxColor);
+                WriteLine("Вираз містить ділення на 0, тому форми не будуються.", SyntaxColor);
+            }
+            return;
+        }
+        foreach (var error in result.Errors)
+            WriteLine($"  {error}", SyntaxColor);
+        if (result.Errors.Count > 0)
+            return;
+
+        Console.Write($"Еквівалентних форм (ЛР3 A + ЛР4 D): ");
+        WriteLine(result.Runs.Count.ToString(), ConsoleColor.Green);
+        if (result.Factoring.Truncated)
+            WriteLine($"  Перебір обмежено: форм більше за {FactoringExplorer.FullSearchForms}.", ConsoleColor.Yellow);
+
+        Console.WriteLine();
+        WriteLine(result.Runs.Count > top ? $"Найшвидші {top} форм (за зростанням Tp):" : "Усі форми (за зростанням Tp):", ConsoleColor.Cyan);
+        Console.WriteLine($"{"Місце",5} {"№",5}  {"Ярусів",6} {"Опер.",5} {"T1",4} {"Tp",4} {"Ky",5} {"E",5}  {"Код",-24} Форма");
+        var shown = result.Runs.Take(top).ToList();
+        if (!shown.Contains(result.Original))
+            shown.Add(result.Original);
+        foreach (var run in shown)
+        {
+            int rank = result.Runs.ToList().IndexOf(run) + 1;
+            string line = $"{rank,5} {run.Form.Id,5}  {run.Form.Tiers,6} {run.Form.Operations,5} {run.Sequential,4} {run.Parallel,4} "
+                + $"{F(run.Speedup),5} {F(run.Efficiency),5}  {run.Form.Code,-24} {run.Form.Infix}{(run.Form.Id == 0 ? "  (вихідна)" : "")}";
+            if (run.Parallel == result.Best.Parallel)
+                WriteLine(line, ConsoleColor.Green);
+            else
+                Console.WriteLine(line);
+        }
+        if (!result.DirectedIsBetter && result.OptimalForms.Count > 1)
+            Console.WriteLine($"Оптимальних форм (Tp = {result.Optimal.Parallel}): {result.OptimalForms.Count}, обрано ту, що має найменше операцій, ярусів і перетворень.");
+
+        Console.WriteLine();
+        WriteLine("Критерії вибору:", ConsoleColor.Cyan);
+        foreach (var (label, run) in new[]
+        {
+            ("найменший Tp", result.Best), ("найменше ярусів (ЛР3–ЛР4)", result.ByTiers),
+            ("найбільше Ky", result.MaxSpeedup), ("найбільше E", result.MaxEfficiency), ("вихідна форма", result.Original),
+        })
+            Console.WriteLine($"  {label,-27} Tp = {run.Parallel,3}, T1 = {run.Sequential,3}, Ky = {F(run.Speedup)}, E = {F(run.Efficiency)}  {run.Form.Infix}");
+
+        if (result.Directed is { } directed)
+        {
+            Console.WriteLine();
+            WriteLine($"Направлений пошук (на крок переходять {directed.BeamWidth} форм з найменшим Tp, зупинка після {directed.Patience} кроків без покращення):",
+                ConsoleColor.Cyan);
+            foreach (var level in directed.Levels)
+                Console.WriteLine($"  крок {level.Depth,2}: промодельовано {level.Evaluated,4}, найкращий Tp {level.BestTime}");
+            Console.WriteLine($"  Промодельовано {directed.Evaluated} форм замість {result.Runs.Count}; найкраща: Tp = {directed.Best.Parallel}  {directed.Best.Form.Infix}");
+        }
+
+        var optimal = result.Optimal;
+        Console.WriteLine();
+        WriteLine($"Оптимальна форма (код {optimal.Form.Code}){(result.DirectedIsBetter ? ", знайдена направленим пошуком" : "")}:", ConsoleColor.Cyan);
+        for (int i = 0; i < optimal.Form.Path.Count; i++)
+            Console.WriteLine($"{i + 1,3}. {StepText(optimal.Form.Path[i], FormOptimizer.VariantLaws)}");
+        if (optimal.Form.Path.Count == 0)
+            Console.WriteLine("  перетворення не зменшують час, вихідна форма вже оптимальна");
+        Console.WriteLine($"Форма: {optimal.Form.Infix}");
+        Console.Write("Паралельна форма: ");
+        WriteLine(ExprPrinter.ToGroupedInfix(optimal.Form.Tree), ConsoleColor.Green);
+        Console.Write("Tp: ");
+        WriteLine($"{result.Original.Parallel} → {optimal.Parallel}", ConsoleColor.Green);
+        Console.WriteLine($"T1: {result.Original.Sequential} → {optimal.Sequential}; Ky: {F(result.Original.Speedup)} → {F(optimal.Speedup)}; "
+            + $"E: {F(result.Original.Efficiency)} → {F(optimal.Efficiency)}");
+        Console.WriteLine();
+        WriteLine("Діаграма Ганта оптимальної форми:", ConsoleColor.Cyan);
+        PrintGantt(optimal.Schedule);
+
+        if (result.Study.Count > 0)
+        {
+            WriteLine("Оптимальна форма для інших параметрів системи:", ConsoleColor.Cyan);
+            foreach (var study in result.Study)
+                Console.WriteLine($"  {study.Label,-22} найкраща Tp = {study.Best.Parallel,3} (Ky {F(study.Best.Speedup)}, E {F(study.Best.Efficiency)}), "
+                    + $"обрана Tp = {study.Chosen.Parallel,3}  {study.Best.Form.Infix}");
+        }
+    }
+
+    /// <summary>ЛР6, дослідження: короткий рядок результатів для кожного виразу.</summary>
+    public static void PrintOptimizationSummary(IReadOnlyList<(string Id, OptimizationResult Result)> results)
+    {
+        Console.WriteLine($"{"Тест",-5} {"Форм",5}  {"Tp вих.",7} {"Tp опт.",7} {"Виграш",7}  {"Ky",11} {"E",11}  {"Tp за ярус.",11}  {"Напр. пошук",14}");
+        foreach (var (id, r) in results)
+        {
+            if (!r.IsValid)
+            {
+                Console.WriteLine($"{id,-5} моделювання неможливе");
+                continue;
+            }
+            var (o, b) = (r.Original, r.Optimal);
+            double gain = o.Parallel == 0 ? 0 : 100.0 * (o.Parallel - b.Parallel) / o.Parallel;
+            string directed = r.Directed is { } d ? $"{d.Best.Parallel} ({d.Evaluated} ф.)" : "";
+            Console.WriteLine($"{id,-5} {r.Runs.Count,5}  {o.Parallel,7} {b.Parallel,7} {gain,6:F1}%  {F(o.Speedup)} → {F(b.Speedup)} "
+                + $"{F(o.Efficiency)} → {F(b.Efficiency)}  {r.ByTiers.Parallel,11}  {directed,14}");
+        }
     }
 
     private static void PrintGantt(VliwSchedule schedule, int perLine = 20)
